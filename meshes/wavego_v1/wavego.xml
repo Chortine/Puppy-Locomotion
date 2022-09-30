@@ -1,0 +1,195 @@
+<mujoco model="wavego">
+  <compiler angle="radian" meshdir="meshes/"/>
+  <!--size njmax="500" nconmax="100"/-->
+  <statistic extent="2" center="0 0 1"/>
+
+  <option timestep="0.00555"/>
+
+  <default>
+    <motor ctrlrange="-1 1" ctrllimited="true"/>
+    <default class="body">
+      <geom type="capsule" condim="1" friction="1.0 0.05 0.05" solimp=".9 .99 .003" solref=".015 1"/>
+      <joint type="hinge" damping="0.1" stiffness="5" armature=".007" limited="true" solimplimit="0 .99 .01"/>
+      <site size=".04" group="3"/>
+      <default class="force-torque">
+        <site type="box" size=".01 .01 .02" rgba="1 0 0 1" />
+      </default>
+      <default class="touch">
+        <site type="capsule" rgba="0 0 1 .3"/>
+      </default>
+    </default>
+  </default>
+  <asset>
+    <mesh name="trunk" file="trunk.STL"/>
+    <mesh name="fl_l0" file="fl_l0.STL"/>
+    <mesh name="fl_l1" file="fl_l1.STL"/>
+    <mesh name="fl_l2" file="fl_l2.STL"/>
+    <mesh name="fl_l3" file="fl_l3.STL"/>
+    <mesh name="fl_l4" file="fl_l4.STL"/>
+    <mesh name="rl_l0" file="rl_l0.STL"/>
+    <mesh name="rl_l1" file="rl_l1.STL"/>
+    <mesh name="rl_l2" file="rl_l2.STL"/>
+    <mesh name="rl_l3" file="rl_l3.STL"/>
+    <mesh name="rl_l4" file="rl_l4.STL"/>
+    <mesh name="fr_l0" file="fr_l0.STL"/>
+    <mesh name="fr_l1" file="fr_l1.STL"/>
+    <mesh name="fr_l2" file="fr_l2.STL"/>
+    <mesh name="fr_l3" file="fr_l3.STL"/>
+    <mesh name="fr_l4" file="fr_l4.STL"/>
+    <mesh name="rr_l0" file="rr_l0.STL"/>
+    <mesh name="rr_l1" file="rr_l1.STL"/>
+    <mesh name="rr_l2" file="rr_l2.STL"/>
+    <mesh name="rr_l3" file="rr_l3.STL"/>
+    <mesh name="rr_l4" file="rr_l4.STL"/>
+  </asset>
+  <worldbody>
+  	<light cutoff="4.0" diffuse="1 1 1" dir="-0.9 -0.9 -2.5" directional="true" exponent="20" pos="0.9 0.9 2.5" specular="0 0 0"/>
+		<geom name="ground" pos="0 0 -0.15" rgba="0.25 0.26 0.25 1" size="10 10 2" type="plane" contype="1"/>
+    <body name="trunk" pos="0 0 1" childclass="body">
+      <inertial pos="2.4203e-06 -0.0015067 0.0062183" quat="-0.000982041 0.708496 -0.00111992 0.705713" mass="0.37688" diaginertia="2.78701e-04 2.15519e-04 6.567e-05"/>
+      <freejoint name="root"/>
+      <geom type="mesh" contype="0" conaffinity="0" group="1" rgba="1 1 1 1" mesh="trunk"/>
+      <geom size="0.04263 0.0351 0.0163" type="box" rgba="1 1 1 1"/>
+      <body name="fl_l0" pos="0.046331 0.026081 0">
+        <inertial pos="0.01662 -0.00013721 -0.0063401" quat="0.728017 0.0635353 0.0557697 0.680326" mass="0.03069" diaginertia="1.11561e-06 8.86123e-07 7.54951e-07"/>
+        <joint name="fl_j0" pos="0 0 0" axis="-1 0 0" limited="true" range="-3.14 3.14"/>
+        <geom type="mesh" contype="0" conaffinity="0" group="1" rgba="1 1 1 1" mesh="fl_l0"/>
+        <geom size="0.01489 0.01175 0.0163" pos="0.018 0 -0.005" type="box" rgba="1 1 1 1"/>
+        <body name="fl_l1" pos="0.011404 0.02025 -0.0114">
+          <inertial pos="-0.01438 -0.0012128 -0.01438" quat="0.666624 0.304622 0.235823 0.638127" mass="0.00349" diaginertia="2.74574e-07 2.6656e-07 1.65665e-08"/>
+          <joint name="fl_j1" pos="0 0 0" axis="0 -1 0" limited="true" range="-3.14 3.14"/>
+          <geom type="mesh" contype="0" conaffinity="0" group="1" rgba="1 1 1 1" mesh="fl_l1"/>
+          <geom size="0.0035 0.00225 0.02" pos="-0.015 -0.002 -0.015" quat="0.939373 0 0.342898 0" type="box" rgba="1 1 1 1"/>
+          <body name="fl_l2" pos="-0.028284 0.0034 -0.028284">
+            <inertial pos="0.032474 -0.0038043 -0.027866" quat="0.606307 -0.252776 -0.226487 0.719166" mass="0.00406" diaginertia="1.37266e-06 1.29325e-06 1.05293e-07"/>
+            <joint name="fl_j2" pos="0 0 0" axis="0 1 0" limited="true" range="-3.14 3.14"/>
+            <geom type="mesh" contype="0" conaffinity="0" group="1" rgba="1 1 1 1" mesh="fl_l2"/>
+            <geom size="0.0035 0.00225 0.02" pos="0.018 -0.002 -0.01" quat="0.877583 0 -0.479426 0" type="box" rgba="1 1 1 1"/>
+            <geom size="0.0035 0.00225 0.02" pos="0.04 -0.002 -0.04" quat="0.984727 0 -0.174108 0" type="box" rgba="1 1 1 1"/>
+            <geom type="sphere" size="0.005" pos="0.046 -0.002 -0.057" quat="0.984727 0 -0.174108 0" rgba="1 1 1 1"/>
+            <body name="fl_l3" pos="0.034277 0 -0.020257">
+              <inertial pos="0.013452 -0.0063583 0.0079001" quat="0.613681 0.351277 0.351277 0.613681" mass="0.00255" diaginertia="2.2227e-07 2.14535e-07 1.0078e-08"/>
+              <joint name="fl_j3" pos="0 0 0" axis="0 1 0" limited="true" range="-3.14 3.14"/>
+              <geom type="mesh" contype="0" conaffinity="0" group="1" rgba="1 1 1 1" mesh="fl_l3"/>
+              <geom size="0.0035 0.00225 0.02" pos="0.018 -0.002 0.01" quat="0.865324 0 0.501213 0" type="box" rgba="1 1 1 1"/>
+              <body name="fl_l4" pos="0.034491 0 0.020257">
+                <inertial pos="-0.013905 -0.0046128 0.013905" quat="0.235823 0.638127 0.666624 0.304622" mass="0.00349" diaginertia="2.74574e-07 2.6656e-07 1.65665e-08"/>
+                <joint name="fl_j4" pos="0 0 0" axis="0 -1 0" limited="true" range="-3.14 3.14"/>
+                <geom type="mesh" contype="0" conaffinity="0" group="1" rgba="1 1 1 1" mesh="fl_l4"/>
+                <geom size="0.0035 0.00225 0.02" pos="-0.015 -0.005 0.015" quat="0.929589 0 -0.368598 0" type="box" rgba="1 1 1 1"/>
+              </body>
+            </body>
+          </body>
+        </body>
+      </body>
+      <body name="rl_l0" pos="-0.047914 0.026081 0">
+        <inertial pos="-0.016948 -0.00013716 -0.0063401" quat="0.680663 -0.0530179 -0.0607376 0.728147" mass="0.03069" diaginertia="1.1156e-06 8.8578e-07 7.55303e-07"/>
+        <joint name="rl_j0" pos="0 0 0" axis="1 0 0" limited="true" range="-3.14 3.14"/>
+        <geom type="mesh" contype="0" conaffinity="0" group="1" rgba="1 1 1 1" mesh="rl_l0"/>
+        <geom size="0.01489 0.01175 0.0163" pos="-0.018 0 -0.005" type="box" rgba="1 1 1 1"/>
+        <body name="rl_l1" pos="-0.023591 0.02025 -0.0114">
+          <inertial pos="-0.01438 -0.0012128 -0.01438" quat="0.666624 0.304624 0.235822 0.638126" mass="0.00349" diaginertia="2.74574e-07 2.6656e-07 1.65662e-08"/>
+          <joint name="rl_j1" pos="0 0 0" axis="0 1 0" limited="true" range="-3.14 3.14"/>
+          <geom type="mesh" contype="0" conaffinity="0" group="1" rgba="1 1 1 1" mesh="rl_l1"/>
+          <geom size="0.0035 0.00225 0.02" pos="-0.015 -0.002 -0.015" quat="0.939373 0 0.342898 0" type="box" rgba="1 1 1 1"/>
+          <body name="rl_l2" pos="-0.028284 0.0034001 -0.028284">
+            <inertial pos="0.032474 -0.0038044 -0.027866" quat="0.606308 -0.252776 -0.226486 0.719165" mass="0.00406" diaginertia="1.37266e-06 1.29325e-06 1.05293e-07"/>
+            <joint name="rl_j2" pos="0 0 0" axis="0 1 0" limited="true" range="-3.14 3.14"/>
+            <geom type="mesh" contype="0" conaffinity="0" group="1" rgba="1 1 1 1" mesh="rl_l2"/>
+            <geom size="0.0035 0.00225 0.02" pos="0.018 -0.002 -0.01" quat="0.877583 0 -0.479426 0" type="box" rgba="1 1 1 1"/>
+            <geom size="0.0035 0.00225 0.02" pos="0.04 -0.002 -0.04" quat="0.984727 0 -0.174108 0" type="box" rgba="1 1 1 1"/>
+            <geom type="sphere" size="0.005" pos="0.046 -0.002 -0.057" quat="0.984727 0 -0.174108 0" rgba="1 1 1 1"/>
+            <body name="rl_l3" pos="0.034277 0 -0.020257">
+              <inertial pos="0.013452 -0.0063583 0.0079001" quat="0.613681 0.351277 0.351277 0.613681" mass="0.00255" diaginertia="2.2227e-07 2.14535e-07 1.0078e-08"/>
+              <joint name="rl_j3" pos="0 0 0" axis="0 1 0" limited="true" range="-3.14 3.14"/>
+              <geom type="mesh" contype="0" conaffinity="0" group="1" rgba="1 1 1 1" mesh="rl_l3"/>
+              <geom size="0.0035 0.00225 0.02" pos="0.018 -0.002 0.01" quat="0.865324 0 0.501213 0" type="box" rgba="1 1 1 1"/>
+              <body name="rl_l4" pos="0.034491 0 0.020257">
+                <inertial pos="-0.013905 -0.0046128 0.013905" quat="0.235823 0.638127 0.666624 0.304622" mass="0.00349" diaginertia="2.74574e-07 2.6656e-07 1.65665e-08"/>
+                <joint name="rl_j4" pos="0 0 0" axis="0 -1 0" limited="true" range="-3.14 3.14"/>
+                <geom type="mesh" contype="0" conaffinity="0" group="1" rgba="1 1 1 1" mesh="rl_l4"/>
+                <geom size="0.0035 0.00225 0.02" pos="-0.015 -0.005 0.015" quat="0.929589 0 -0.368598 0" type="box" rgba="1 1 1 1"/>
+              </body>
+            </body>
+          </body>
+        </body>
+      </body>
+      <body name="fr_l0" pos="0.046344 -0.028919 0">
+        <inertial pos="0.016609 0.00013716 -0.0063401" quat="0.680663 0.0530179 0.0607376 0.728147" mass="0.03069" diaginertia="1.1156e-06 8.8578e-07 7.55303e-07"/>
+        <joint name="fr_j0" pos="0 0 0" axis="-1 0 0" limited="true" range="-3.14 3.14"/>
+        <geom type="mesh" contype="0" conaffinity="0" group="1" rgba="1 1 1 1" mesh="fr_l0"/>
+        <geom size="0.01489 0.01175 0.0163" pos="0.018 0 -0.005" type="box" rgba="1 1 1 1"/>
+        <body name="fr_l1" pos="0.011391 -0.02025 -0.0114">
+          <inertial pos="-0.01438 0.0012129 -0.01438" quat="0.638127 0.235823 0.304622 0.666624" mass="0.00349" diaginertia="2.74574e-07 2.6656e-07 1.65665e-08"/>
+          <joint name="fr_j1" pos="0 0 0" axis="0 -1 0" limited="true" range="-3.14 3.14"/>
+          <geom type="mesh" contype="0" conaffinity="0" group="1" rgba="1 1 1 1" mesh="fr_l1"/>
+          <geom size="0.0035 0.00225 0.02" pos="-0.015 0.002 -0.015" quat="0.939373 0 0.342898 0" type="box" rgba="1 1 1 1"/>
+          <body name="fr_l2" pos="-0.028284 -0.0033999 -0.028284">
+            <inertial pos="0.032474 0.0038043 -0.027866" quat="0.719167 -0.226487 -0.252776 0.606306" mass="0.00406" diaginertia="1.37266e-06 1.29325e-06 1.05293e-07"/>
+            <joint name="fr_j2" pos="0 0 0" axis="0 -1 0" limited="true" range="-3.14 3.14"/>
+            <geom type="mesh" contype="0" conaffinity="0" group="1" rgba="1 1 1 1" mesh="fr_l2"/>
+            <geom size="0.0035 0.00225 0.02" pos="0.018 0.002 -0.01" quat="0.877583 0 -0.479426 0" type="box" rgba="1 1 1 1"/>
+            <geom size="0.0035 0.00225 0.02" pos="0.04 0.002 -0.04" quat="0.984727 0 -0.174108 0" type="box" rgba="1 1 1 1"/>
+            <geom type="sphere" size="0.005" pos="0.046 0.002 -0.057" quat="0.984727 0 -0.174108 0" rgba="1 1 1 1"/>
+            <body name="fr_l3" pos="0.034277 0 -0.020257">
+              <inertial pos="0.013452 0.0063582 0.0079002" quat="0.613682 0.351275 0.351275 0.613682" mass="0.00255" diaginertia="2.2227e-07 2.14536e-07 1.00779e-08"/>
+              <joint name="fr_j3" pos="0 0 0" axis="0 -1 0" limited="true" range="-3.14 3.14"/>
+              <geom type="mesh" contype="0" conaffinity="0" group="1" rgba="1 1 1 1" mesh="fr_l3"/>
+              <geom size="0.0035 0.00225 0.02" pos="0.018 0.002 0.01" quat="0.865324 0 0.501213 0" type="box" rgba="1 1 1 1"/>
+              <body name="fr_l4" pos="0.034491 0 0.020257">
+                <inertial pos="-0.013905 0.0046129 0.013905" quat="0.304624 0.666624 0.638126 0.235822" mass="0.00349" diaginertia="2.74574e-07 2.6656e-07 1.65662e-08"/>
+                <joint name="fr_j4" pos="0 0 0" axis="0 -1 0" limited="true" range="-3.14 3.14"/>
+                <geom type="mesh" contype="0" conaffinity="0" group="1" rgba="1 1 1 1" mesh="fr_l4"/>
+                <geom size="0.0035 0.00225 0.02" pos="-0.015 0.005 0.015" quat="0.929589 0 -0.368598 0" type="box" rgba="1 1 1 1"/>
+              </body>
+            </body>
+          </body>
+        </body>
+      </body>
+      <body name="rr_l0" pos="-0.047914 -0.028919 0">
+        <inertial pos="-0.016946 0.00013722 -0.0063401" quat="0.728017 -0.0635353 -0.0557697 0.680326" mass="0.03069" diaginertia="1.11561e-06 8.86123e-07 7.54951e-07"/>
+        <joint name="rr_j0" pos="0 0 0" axis="1 0 0" limited="true" range="-3.14 3.14"/>
+        <geom type="mesh" contype="0" conaffinity="0" group="1" rgba="1 1 1 1" mesh="rr_l0"/>
+        <geom size="0.01489 0.01175 0.0163" pos="-0.018 0 -0.005" type="box" rgba="1 1 1 1"/>
+        <body name="rr_l1" pos="-0.023591 -0.02025 -0.0114">
+          <inertial pos="-0.01438 0.0012128 -0.01438" quat="0.638127 0.235823 0.304622 0.666624" mass="0.00349" diaginertia="2.74574e-07 2.6656e-07 1.65665e-08"/>
+          <joint name="rr_j1" pos="0 0 0" axis="0 -1 0" limited="true" range="-3.14 3.14"/>
+          <geom type="mesh" contype="0" conaffinity="0" group="1" rgba="1 1 1 1" mesh="rr_l1"/>
+          <geom size="0.0035 0.00225 0.02" pos="-0.015 0.002 -0.015" quat="0.939373 0 0.342898 0" type="box" rgba="1 1 1 1"/>
+          <body name="rr_l2" pos="-0.028284 -0.0034 -0.028284">
+            <inertial pos="0.032474 0.0038044 -0.027866" quat="0.719166 -0.226487 -0.252776 0.606307" mass="0.00406" diaginertia="1.37266e-06 1.29325e-06 1.05293e-07"/>
+            <joint name="rr_j2" pos="0 0 0" axis="0 1 0" limited="true" range="-3.14 3.14"/>
+            <geom type="mesh" contype="0" conaffinity="0" group="1" rgba="1 1 1 1" mesh="rr_l2"/>
+            <geom size="0.0035 0.00225 0.02" pos="0.018 0.002 -0.01" quat="0.877583 0 -0.479426 0" type="box" rgba="1 1 1 1"/>
+            <geom size="0.0035 0.00225 0.02" pos="0.04 0.002 -0.04" quat="0.984727 0 -0.174108 0" type="box" rgba="1 1 1 1"/>
+            <geom type="sphere" size="0.005" pos="0.046 0.002 -0.057" quat="0.984727 0 -0.174108 0" rgba="1 1 1 1"/>
+            <body name="rr_l3" pos="0.034277 0 -0.020257">
+              <inertial pos="0.013452 0.0063583 0.0079002" quat="0.613682 0.351275 0.351275 0.613682" mass="0.00255" diaginertia="2.2227e-07 2.14536e-07 1.00779e-08"/>
+              <joint name="rr_j3" pos="0 0 0" axis="0 -1 0" limited="true" range="-3.14 3.14"/>
+              <geom type="mesh" contype="0" conaffinity="0" group="1" rgba="1 1 1 1" mesh="rr_l3"/>
+              <geom size="0.0035 0.00225 0.02" pos="0.018 0.002 0.01" quat="0.865324 0 0.501213 0" type="box" rgba="1 1 1 1"/>
+              <body name="rr_l4" pos="0.034491 0 0.020257">
+                <inertial pos="-0.013905 0.0046128 0.013905" quat="0.304622 0.666624 0.638127 0.235823" mass="0.00349" diaginertia="2.74574e-07 2.6656e-07 1.65665e-08"/>
+                <joint name="rr_j4" pos="0 0 0" axis="0 -1 0" limited="true" range="-3.14 3.14"/>
+                <geom type="mesh" contype="0" conaffinity="0" group="1" rgba="1 1 1 1" mesh="rr_l4"/>
+                <geom size="0.0035 0.00225 0.02" pos="-0.015 0.005 0.015" quat="0.929589 0 -0.368598 0" type="box" rgba="1 1 1 1"/>
+              </body>
+            </body>
+          </body>
+        </body>
+      </body>
+    </body>
+  </worldbody>
+  <equality>
+    <connect name="eq_fl" active="true" body1="fl_l0" body2="fl_l4" anchor="0.02359 0.02025 -0.0114"/>
+  </equality>
+  <equality>
+    <connect name="eq_fr" active="true" body1="fr_l0" body2="fr_l4" anchor="0.02359 -0.02025 -0.0114"/>
+  </equality>
+  <equality>
+    <connect name="eq_rl" active="true" body1="rl_l0" body2="rl_l4" anchor="-0.01139 0.02025 -0.0114"/>
+  </equality>
+  <equality>
+    <connect name="eq_rr" active="true" body1="rr_l0" body2="rr_l4" anchor="-0.01139 -0.02025 -0.0114"/>
+  </equality>
+</mujoco>
