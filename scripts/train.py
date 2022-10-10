@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: Copyright (c) 2021 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: BSD-3-Clause
-# 
+#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
 #
@@ -39,18 +39,18 @@ from legged_gym.envs import *
 from envs import *
 from legged_gym.utils import get_args, task_registry
 import torch
-
+current_root = os.path.dirname(os.path.dirname(__file__))
 
 def train(args):
     args.task = "wavego_flat"
     # args.task = "a1"
     # args.task = "a1_flat"
-    args.num_envs = 2000
+    args.num_envs = 15000
     args.seed = 42
     args.resume = False
     # args.checkpoint = -1
     env, env_cfg = task_registry.make_env(name=args.task, args=args)
-    ppo_runner, train_cfg = task_registry.make_alg_runner(env=env, name=args.task, args=args, log_root='/home/tianchu/Documents/code_qy/puppy-gym/logs')
+    ppo_runner, train_cfg = task_registry.make_alg_runner(env=env, name=args.task, args=args, log_root=os.path.join(current_root, 'logs/'))
     # ckpt_path = '/home/tianchu/Documents/code_qy/puppy-gym/logs/Oct09_16-21-21_run1/model_100.pt'
     # ppo_runner.load(ckpt_path)
     ppo_runner.learn(num_learning_iterations=train_cfg.runner.max_iterations, init_at_random_ep_len=True)
