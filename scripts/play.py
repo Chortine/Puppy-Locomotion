@@ -44,7 +44,7 @@ def play(args):
     # args.task = "a1_flat"
     args.task = "wavego_flat"
     args.num_envs = 10
-    ckpt_path = '/home/tianchu/Documents/code_qy/puppy-gym/logs/Oct09_16-44-12_run1/model_300.pt'
+    ckpt_path = '/home/tianchu/Documents/code_qy/puppy-gym/logs/Oct10_15-02-57_run1/model_1300.pt'
     env_cfg, train_cfg = task_registry.get_cfgs(name=args.task)
     # override some parameters for testing
     env_cfg.env.num_envs = min(env_cfg.env.num_envs, 50)

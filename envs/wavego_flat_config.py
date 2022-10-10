@@ -33,7 +33,7 @@ import numpy as np
 import os, sys
 current_root = os.path.dirname(os.path.dirname(__file__))
 # j0_default_ang = np.radians()
-j0 = 5  # from 90 to 0
+j0 = 4  # from 90 to 0
 j1 = 15  # from 45 to -90
 j2 = -15  # from -45 to 30
 
@@ -98,20 +98,20 @@ class WavegoFlatCfg(LeggedRobotCfg):
 
         stiffness = {
             'fr_j0': 2.0,
-            'fr_j1': 0.4,
-            'fr_j2': 0.5,
+            'fr_j1': 1.4,
+            'fr_j2': 1.5,
 
             'fl_j0': 2.0,
-            'fl_j1': 0.4,
-            'fl_j2': 0.5,
+            'fl_j1': 1.4,
+            'fl_j2': 1.5,
 
             'rr_j0': 2.0,
-            'rr_j1': 0.5,
-            'rr_j2': 0.8,
+            'rr_j1': 1.5,
+            'rr_j2': 1.8,
 
             'rl_j0': 2.0,
-            'rl_j1': 0.5,
-            'rl_j2': 0.8
+            'rl_j1': 1.5,
+            'rl_j2': 1.8
         }
 
         damping = {
@@ -139,7 +139,7 @@ class WavegoFlatCfg(LeggedRobotCfg):
         decimation = 8
 
     class asset(LeggedRobotCfg.asset):
-        file = os.path.join(current_root, 'meshes/wavego_v1/wavego.urdf')
+        file = os.path.join(current_root, 'meshes/wavego_v1/wavego_fix_j0.urdf')
         name = "wavego"
         foot_name = "_l3"
         penalize_contacts_on = []
