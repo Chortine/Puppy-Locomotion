@@ -152,6 +152,7 @@ class WavegoFlatCfg(LeggedRobotCfg):
     class rewards(LeggedRobotCfg.rewards):
         soft_dof_pos_limit = 0.9
         base_height_target = 0.1
+        tracking_sigma = 0.05  # tracking reward = exp(-error^2/sigma)
 
         class scales(LeggedRobotCfg.rewards.scales):
             tracking_lin_vel = 2.0
@@ -160,6 +161,7 @@ class WavegoFlatCfg(LeggedRobotCfg):
             torques = -0.000025
             dof_pos_limits = -10.0
             feet_air_time = 0.0
+
 
     class domain_rand(LeggedRobotCfg.domain_rand):
         randomize_friction = False
