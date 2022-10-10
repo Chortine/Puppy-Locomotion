@@ -43,8 +43,8 @@ import torch
 def play(args):
     # args.task = "a1_flat"
     args.task = "wavego_flat"
-    args.num_envs = 2
-    args.checkpoint = -1
+    args.num_envs = 10
+    ckpt_path = '/home/tianchu/Documents/code_qy/puppy-gym/logs/Oct09_16-44-12_run1/model_300.pt'
     env_cfg, train_cfg = task_registry.get_cfgs(name=args.task)
     # override some parameters for testing
     env_cfg.env.num_envs = min(env_cfg.env.num_envs, 50)
@@ -59,8 +59,10 @@ def play(args):
     env, _ = task_registry.make_env(name=args.task, args=args, env_cfg=env_cfg)
     obs = env.get_observations()
     # load policy
-    train_cfg.runner.resume = True
+    train_cfg.runner.resume = False
     ppo_runner, train_cfg = task_registry.make_alg_runner(env=env, name=args.task, args=args, train_cfg=train_cfg)
+    ppo_runner.load(ckpt_path)
+
     policy = ppo_runner.get_inference_policy(device=env.device)
     
     # export policy as a jit module (used to run it from C++)

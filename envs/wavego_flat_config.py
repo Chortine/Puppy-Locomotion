@@ -30,9 +30,10 @@
 
 from legged_gym.envs.base.legged_robot_config import LeggedRobotCfg, LeggedRobotCfgPPO
 import numpy as np
-
+import os, sys
+current_root = os.path.dirname(os.path.dirname(__file__))
 # j0_default_ang = np.radians()
-j0 = 15  # from 90 to 0
+j0 = 5  # from 90 to 0
 j1 = 15  # from 45 to -90
 j2 = -15  # from -45 to 30
 
@@ -64,7 +65,7 @@ class WavegoFlatCfg(LeggedRobotCfg):
         }
 
     class env(LeggedRobotCfg.env):
-        num_observations = 48
+        num_observations = 45
         episode_length_s = 50
 
     class sim(LeggedRobotCfg.sim):
@@ -86,9 +87,9 @@ class WavegoFlatCfg(LeggedRobotCfg):
         heading_command = True  # if true: compute ang vel command from heading error
 
         class ranges:
-            lin_vel_x = [-1.0, 1.0]  # min max [m/s]
+            lin_vel_x = [0.5, 0.5]  # min max [m/s]
             lin_vel_y = [-0.0, 0.0]  # min max [m/s]
-            ang_vel_yaw = [-1, 1]  # min max [rad/s]
+            ang_vel_yaw = [-0, 0]  # min max [rad/s]
             heading = [0, 0]
 
     class control(LeggedRobotCfg.control):
@@ -135,10 +136,10 @@ class WavegoFlatCfg(LeggedRobotCfg):
         action_scale = 0.25
         # action_scale = 0.0
         # decimation: Number of control action updates @ sim DT per policy DT
-        decimation = 4
+        decimation = 8
 
     class asset(LeggedRobotCfg.asset):
-        file = '/home/tianchu/Documents/code_qy/puppy-gym/meshes/wavego_v1/wavego.urdf'
+        file = os.path.join(current_root, 'meshes/wavego_v1/wavego.urdf')
         name = "wavego"
         foot_name = "_l3"
         penalize_contacts_on = []
@@ -153,6 +154,9 @@ class WavegoFlatCfg(LeggedRobotCfg):
         base_height_target = 0.1
 
         class scales(LeggedRobotCfg.rewards.scales):
+            tracking_lin_vel = 1.0
+            tracking_ang_vel = 0.5
+
             torques = -0.000025
             dof_pos_limits = -10.0
             feet_air_time = 0.0

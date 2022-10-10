@@ -32,7 +32,8 @@ import numpy as np
 import os, sys
 from datetime import datetime
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-
+print(sys.path)
+print(__file__)
 import isaacgym
 from legged_gym.envs import *
 from envs import *
@@ -46,10 +47,12 @@ def train(args):
     # args.task = "a1_flat"
     args.num_envs = 2000
     args.seed = 42
-    args.resume = True
-    args.checkpoint = -1
+    args.resume = False
+    # args.checkpoint = -1
     env, env_cfg = task_registry.make_env(name=args.task, args=args)
-    ppo_runner, train_cfg = task_registry.make_alg_runner(env=env, name=args.task, args=args)
+    ppo_runner, train_cfg = task_registry.make_alg_runner(env=env, name=args.task, args=args, log_root='/home/tianchu/Documents/code_qy/puppy-gym/logs')
+    # ckpt_path = '/home/tianchu/Documents/code_qy/puppy-gym/logs/Oct09_16-21-21_run1/model_100.pt'
+    # ppo_runner.load(ckpt_path)
     ppo_runner.learn(num_learning_iterations=train_cfg.runner.max_iterations, init_at_random_ep_len=True)
 
 
