@@ -87,7 +87,7 @@ class WavegoFlatCfg(LeggedRobotCfg):
         heading_command = True  # if true: compute ang vel command from heading error
 
         class ranges:
-            lin_vel_x = [0.5, 0.5]  # min max [m/s]
+            lin_vel_x = [0.3, 0.3]  # min max [m/s]
             lin_vel_y = [-0.0, 0.0]  # min max [m/s]
             ang_vel_yaw = [-0, 0]  # min max [rad/s]
             heading = [0, 0]
@@ -98,20 +98,20 @@ class WavegoFlatCfg(LeggedRobotCfg):
 
         stiffness = {
             'fr_j0': 2.0,
-            'fr_j1': 1.4,
-            'fr_j2': 1.5,
+            'fr_j1': 0.4,
+            'fr_j2': 0.5,
 
             'fl_j0': 2.0,
-            'fl_j1': 1.4,
-            'fl_j2': 1.5,
+            'fl_j1': 0.4,
+            'fl_j2': 0.5,
 
             'rr_j0': 2.0,
-            'rr_j1': 1.5,
-            'rr_j2': 1.8,
+            'rr_j1': 0.5,
+            'rr_j2': 0.8,
 
             'rl_j0': 2.0,
-            'rl_j1': 1.5,
-            'rl_j2': 1.8
+            'rl_j1': 0.5,
+            'rl_j2': 0.8
         }
 
         damping = {
@@ -154,7 +154,7 @@ class WavegoFlatCfg(LeggedRobotCfg):
         base_height_target = 0.1
 
         class scales(LeggedRobotCfg.rewards.scales):
-            tracking_lin_vel = 1.0
+            tracking_lin_vel = 2.0
             tracking_ang_vel = 0.5
 
             torques = -0.000025
@@ -182,5 +182,5 @@ class WavegoFlatCfgPPO(LeggedRobotCfgPPO):
     class runner(LeggedRobotCfgPPO.runner):
         run_name = 'run1'
         experiment_name = 'flat_wavego'
-        save_interval = 100
+        save_interval = 20
         max_iterations = 2000
