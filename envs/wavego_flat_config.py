@@ -65,7 +65,7 @@ class WavegoFlatCfg(LeggedRobotCfg):
         }
 
     class env(LeggedRobotCfg.env):
-        num_observations = 45
+        num_observations = 42
         episode_length_s = 50
 
     class sim(LeggedRobotCfg.sim):
