@@ -46,7 +46,7 @@ class WavegoRobot(LeggedRobot):
         self.dof_vel_from_deviation = (self.dof_pos - self.last_dof_pos) / self.dt
         self.obs_buf = torch.cat((
             self.base_ang_vel * self.obs_scales.ang_vel,  # 3
-            self.projected_gravity,  # 3
+            # self.projected_gravity,  # 3
             self.commands[:, :3] * self.commands_scale,
             (self.dof_pos - self.default_dof_pos) * self.obs_scales.dof_pos,
             self.dof_vel_from_deviation * self.obs_scales.dof_vel,
