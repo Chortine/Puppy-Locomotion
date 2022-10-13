@@ -173,6 +173,7 @@ class WavegoFlatCfg(LeggedRobotCfg):
             feet_stumble = -0.0 
             action_rate = -0.01
             stand_still = -0.
+            energy = -0.0
 
 
     class domain_rand(LeggedRobotCfg.domain_rand):

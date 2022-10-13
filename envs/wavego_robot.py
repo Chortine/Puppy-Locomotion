@@ -62,3 +62,6 @@ class WavegoRobot(LeggedRobot):
             self.obs_buf += (2 * torch.rand_like(self.obs_buf) - 1) * self.noise_scale_vec
 
         self.last_dof_pos[:] = self.dof_pos[:]
+
+    def _reward_energy(self):
+        return torch.sum(torch.abs(self.torques) * torch.abs(self.dof_vel), dim=1)
