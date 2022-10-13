@@ -87,7 +87,7 @@ class WavegoFlatCfg(LeggedRobotCfg):
         heading_command = True  # if true: compute ang vel command from heading error
 
         class ranges:
-            lin_vel_x = [0.3, 0.3]  # min max [m/s]
+            lin_vel_x = [0.4, 0.4]  # min max [m/s]
             lin_vel_y = [-0.0, 0.0]  # min max [m/s]
             ang_vel_yaw = [-0, 0]  # min max [rad/s]
             heading = [0, 0]
@@ -160,7 +160,19 @@ class WavegoFlatCfg(LeggedRobotCfg):
 
             torques = -0.000025
             dof_pos_limits = -10.0
-            feet_air_time = 0.0
+            feet_air_time = 1.0
+
+            termination = -0.0
+            lin_vel_z = -2.0
+            ang_vel_xy = -0.05
+            orientation = -0.
+            dof_vel = -0.
+            dof_acc = -2.5e-7
+            base_height = -0. 
+            collision = -1.
+            feet_stumble = -0.0 
+            action_rate = -0.01
+            stand_still = -0.
 
 
     class domain_rand(LeggedRobotCfg.domain_rand):
