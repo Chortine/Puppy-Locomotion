@@ -35,9 +35,9 @@ import numpy as np
 import os, sys
 current_root = os.path.dirname(os.path.dirname(__file__))
 # j0_default_ang = np.radians()
-j0 = 4  # from 90 to 0
-j1 = 15  # from 45 to -90
-j2 = -15  # from -45 to 30
+j0 = 0  # from 90 to 0
+j1 = 0  # from 45 to -90
+j2 = -35  # from -45 to 30
 
 # j0 = 0
 # j1 = 0
@@ -45,7 +45,7 @@ j2 = -15  # from -45 to 30
 
 class WavegoFlatCfg(LeggedRobotCfg):
     class init_state(LeggedRobotCfg.init_state):
-        pos = [0.0, 0.0, 0.1]  # x,y,z [m]
+        pos = [0.0, 0.0, 1.1]  # x,y,z [m]
         rot = [0.0, 0.0, 0.0, 1.0]  # x,y,z,w [quat]
 
         default_joint_angles = {  # = target angles [rad] when action = 0.0
@@ -149,7 +149,7 @@ class WavegoFlatCfg(LeggedRobotCfg):
         self_collisions = 1  # 1 to disable, 0 to enable...bitwise filter
         flip_visual_attachments = False
         disable_gravity = False
-        fix_base_link = False
+        fix_base_link = True
 
     class rewards(LeggedRobotCfg.rewards):
         soft_dof_pos_limit = 0.9

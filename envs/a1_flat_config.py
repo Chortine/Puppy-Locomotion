@@ -28,8 +28,8 @@
 #
 # Copyright (c) 2021 ETH Zurich, Nikita Rudin
 
-from legged_gym.envs.base.legged_robot_config import LeggedRobotCfg, LeggedRobotCfgPPO
-
+# from legged_gym.envs.base.legged_robot_config import LeggedRobotCfg, LeggedRobotCfgPPO
+from real_deployment.base_legged_robot_config import LeggedRobotCfg, LeggedRobotCfgPPO
 
 class A1FlatCfg(LeggedRobotCfg):
     class init_state(LeggedRobotCfg.init_state):
