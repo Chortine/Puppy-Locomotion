@@ -36,7 +36,7 @@ if __name__ == '__main__':
     sim_dt = env_cfg.sim.dt
     decimation = env_cfg.control.decimation
     # rl_step_interval = sim_dt * decimation
-    rl_step_interval = 1 / 5
+    rl_step_interval = 1 / 10
     scaled_rl_action = torch.Tensor(np.zeros(12))
     command = [0]*12
     # TODO: Frequency control

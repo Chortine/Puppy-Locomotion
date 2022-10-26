@@ -232,8 +232,8 @@ class RealAgent:
         # clip and scale the action
         clip_actions = self.env_cfg.normalization.clip_actions
         clipped_actions = np.clip(actions, -clip_actions, clip_actions)
-        scaled_actions = clipped_actions * self.env_cfg.control.action_scale
-        # scaled_actions = clipped_actions * 0.15
+        # scaled_actions = clipped_actions * self.env_cfg.control.action_scale
+        scaled_actions = clipped_actions * 0.25
         print(f'action_scale {self.env_cfg.control.action_scale}')
         return scaled_actions
 

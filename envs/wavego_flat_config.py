@@ -193,6 +193,7 @@ class WavegoFlatCfg(LeggedRobotCfg):
 
 
 class WavegoFlatCfgPPO(LeggedRobotCfgPPO):
+    seed = 10
     class algorithm(LeggedRobotCfgPPO.algorithm):
         entropy_coef = 0.01
 
