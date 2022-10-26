@@ -95,7 +95,7 @@ class RealPipeline:
         :param angle_j0: in radians
         :param angle_j1:
         :param angle_j2:
-        :return:
+        :return: wiggle_angle[degrees], l2_end_x_leg[mm], l2_end_y_leg[mm]
         """
         # output wiggle angle and xy on the plane (x y are expressed in the leg coordinate)
         # wiggle_angle: degree; xy: millimeter
@@ -124,7 +124,7 @@ class RealPipeline:
 
         return wiggle_angle, l2_end_x_leg, l2_end_y_leg
 
-    def action_to_command(self, scaled_rl_action):
+    def action_to_command(self, scaled_rl_action, fix_j0=False):
         """
         compute the target joint angle in way similar to the sim
         the rl_action should already be clipped and scaled
@@ -150,7 +150,8 @@ class RealPipeline:
             self.sim_joint_cmd_dict[f'{leg}_j0'].append(target_joint_angles[f'{leg}_j0'])
             self.sim_joint_cmd_dict[f'{leg}_j1'].append(target_joint_angles[f'{leg}_j1'])
             self.sim_joint_cmd_dict[f'{leg}_j2'].append(target_joint_angles[f'{leg}_j2'])
-
+            if fix_j0:
+                a = 4  # fix to 4 degree
             leg_command_dict[f'{leg}_leg'] = [a, x, y]
         # alias
         cmd = leg_command_dict
