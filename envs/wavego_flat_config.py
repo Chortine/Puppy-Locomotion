@@ -33,6 +33,7 @@ from real_deployment.base_legged_robot_config import LeggedRobotCfg, LeggedRobot
 
 import numpy as np
 import os, sys
+
 current_root = os.path.dirname(os.path.dirname(__file__))
 # j0_default_ang = np.radians()
 j0 = 4  # from 90 to 0
@@ -43,9 +44,48 @@ j2 = -15  # from -45 to 30
 # j1 = 0
 # j2 = 0
 
+var_init_pos = [0.0, 0.0, 1.1]
+var_fix_base_link = True
+var_action_scale = 0.0
+var_decimation = 100
+var_dt = 0.001
+var_control_mode = 'pos'
+
+"""
+
+hang_test
+walk_test
+"""
+
+# ===== stiffness ====== #
+# fore legs
+fore_j0_p = 2.0
+fore_j1_p = 0.4
+fore_j2_p = 0.5
+
+# hind legs
+hind_j0_p = 2.0
+hind_j1_p = 0.5
+hind_j2_p = 0.8
+
+# ===== damping ======= #
+# fore legs
+fore_j0_d = 0.01
+fore_j1_d = 0.01
+fore_j2_d = 0.01
+
+# hind legs
+hind_j0_d = 0.01
+hind_j1_d = 0.01
+hind_j2_d = 0.01
+
+
 class WavegoFlatCfg(LeggedRobotCfg):
+    class customize():
+        add_toe_force = True
+
     class init_state(LeggedRobotCfg.init_state):
-        pos = [0.0, 0.0, 0.1]  # x,y,z [m]
+        pos = var_init_pos  # x,y,z [m]
         rot = [0.0, 0.0, 0.0, 1.0]  # x,y,z,w [quat]
 
         default_joint_angles = {  # = target angles [rad] when action = 0.0
@@ -71,7 +111,7 @@ class WavegoFlatCfg(LeggedRobotCfg):
         episode_length_s = 50
 
     class sim(LeggedRobotCfg.sim):
-        dt = 0.005
+        dt = var_dt
         gravity = [0., 0., -9.81]  # [m/s^2]
 
     # class normalization(LeggedRobotCfg.normalization):
@@ -99,46 +139,51 @@ class WavegoFlatCfg(LeggedRobotCfg):
         control_type = 'P'
 
         stiffness = {
-            'fr_j0': 2.0,
-            'fr_j1': 0.4,
-            'fr_j2': 0.5,
+            'fr_j0': fore_j0_p,
+            'fr_j1': fore_j1_p,
+            'fr_j2': fore_j2_p,
 
-            'fl_j0': 2.0,
-            'fl_j1': 0.4,
-            'fl_j2': 0.5,
+            'fl_j0': fore_j0_p,
+            'fl_j1': fore_j1_p,
+            'fl_j2': fore_j2_p,
 
-            'rr_j0': 2.0,
-            'rr_j1': 0.5,
-            'rr_j2': 0.8,
+            'rr_j0': hind_j0_p,
+            'rr_j1': hind_j1_p,
+            'rr_j2': hind_j2_p,
 
-            'rl_j0': 2.0,
-            'rl_j1': 0.5,
-            'rl_j2': 0.8
+            'rl_j0': hind_j0_p,
+            'rl_j1': hind_j1_p,
+            'rl_j2': hind_j2_p
         }
+
+        for k, v in stiffness.items():
+            stiffness[k] += 200
 
         damping = {
-            'fr_j0': 0.01,
-            'fr_j1': 0.01,
-            'fr_j2': 0.01,
+            'fr_j0': fore_j0_d,
+            'fr_j1': fore_j1_d,
+            'fr_j2': fore_j2_d,
 
-            'fl_j0': 0.01,
-            'fl_j1': 0.01,
-            'fl_j2': 0.01,
+            'fl_j0': fore_j0_d,
+            'fl_j1': fore_j1_d,
+            'fl_j2': fore_j2_d,
 
-            'rr_j0': 0.01,
-            'rr_j1': 0.01,
-            'rr_j2': 0.01,
+            'rr_j0': hind_j0_d,
+            'rr_j1': hind_j1_d,
+            'rr_j2': hind_j2_d,
 
-            'rl_j0': 0.01,
-            'rl_j1': 0.01,
-            'rl_j2': 0.01
+            'rl_j0': hind_j0_d,
+            'rl_j1': hind_j1_d,
+            'rl_j2': hind_j2_d
         }
+        for k, v in damping.items():
+            damping[k] *= 10
 
         # action scale: target angle = actionScale * action + defaultAngle
-        action_scale = 0.25
-        # action_scale = 0.0
+        action_scale = var_action_scale
         # decimation: Number of control action updates @ sim DT per policy DT
-        decimation = 8
+        decimation = var_decimation
+        control_mode = var_control_mode
 
     class asset(LeggedRobotCfg.asset):
         file = os.path.join(current_root, 'meshes/wavego_v1/wavego_fix_j0.urdf')
@@ -149,7 +194,7 @@ class WavegoFlatCfg(LeggedRobotCfg):
         self_collisions = 1  # 1 to disable, 0 to enable...bitwise filter
         flip_visual_attachments = False
         disable_gravity = False
-        fix_base_link = False
+        fix_base_link = var_fix_base_link
 
     class rewards(LeggedRobotCfg.rewards):
         soft_dof_pos_limit = 0.9
@@ -170,13 +215,12 @@ class WavegoFlatCfg(LeggedRobotCfg):
             orientation = -0.
             dof_vel = -0.
             dof_acc = -2.5e-7
-            base_height = -0. 
+            base_height = -0.
             collision = -1.
-            feet_stumble = -0.0 
+            feet_stumble = -0.0
             action_rate = -0.01
             stand_still = -0.
             energy = -0.0
-
 
     class domain_rand(LeggedRobotCfg.domain_rand):
         randomize_friction = False
@@ -194,6 +238,7 @@ class WavegoFlatCfg(LeggedRobotCfg):
 
 class WavegoFlatCfgPPO(LeggedRobotCfgPPO):
     seed = 10
+
     class algorithm(LeggedRobotCfgPPO.algorithm):
         entropy_coef = 0.01
 

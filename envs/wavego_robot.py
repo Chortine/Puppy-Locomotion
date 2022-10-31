@@ -8,14 +8,14 @@ from collections import deque
 import os, sys
 import pickle
 from real_deployment.transition_debugger import TransitionDebugger
-
+import matplotlib.pyplot as plt
 
 class WavegoRobot(LeggedRobot):
     def __init__(self, cfg, sim_params, physics_engine, sim_device, headless):
         super().__init__(cfg, sim_params, physics_engine, sim_device, headless)
         self.sim_device = sim_device
         # self.action = None
-        self.debugger_mode = 'collect'
+        self.debugger_mode = 'none'
         if self.debugger_mode != 'none':
             self.debugger = TransitionDebugger(mode=self.debugger_mode, sequence_len=500,
                                                transition_path='/home/tianchu/Documents/code_qy/puppy-gym/envs/data')
@@ -25,8 +25,12 @@ class WavegoRobot(LeggedRobot):
         self.dof_vel_from_deviation = torch.zeros_like(self.dof_vel)
         self.last_dof_pos = torch.zeros_like(self.dof_pos)
         self.last_dof_pos[:] = self.default_dof_pos[:]
+        self.dof_pos_errors = []
+        self.dof_pos_s = []
+        self.dof_targets = []
 
     def step(self, actions):
+        start_time = time.time()
         super().step(actions)
         # self.action = np.squeeze(actions.detach().cpu().numpy())
         # add Nan exception
@@ -51,6 +55,8 @@ class WavegoRobot(LeggedRobot):
                 tmp = nan_idx.detach().cpu().numpy()
                 tmp = np.unique(tmp[:, 0])
                 print(f'!!! Still has nan on env {tmp}')
+        print(f'===== sim step time {(time.time() - start_time)/self.cfg.control.decimation}')
+        print(f'fl_j1 vel is {self.dof_vel[0, 1]}')
         return self.obs_buf, self.privileged_obs_buf, self.rew_buf, self.reset_buf, self.extras
 
     def get_toe_pose(self):
@@ -65,11 +71,11 @@ class WavegoRobot(LeggedRobot):
         # alphas = np.deg2rad(0.0)
         alphas = {}
         link_name = self.body_names
-        dof_pos = np.squeeze(self.dof_pos.detach().cpu().numpy())
+        dof_pos = np.squeeze(self.dof_pos.detach().cpu().numpy()[0])
         dof_name_pos = {key: dof_pos[i] for i, key in enumerate(self.dof_names)}
         for leg in ['rr', 'fr', 'fl', 'rl']:
             alphas[leg] = dof_name_pos[f'{leg}_j0']
-        link_pos = np.squeeze(self.link_pos.detach().cpu().numpy())
+        link_pos = np.squeeze(self.link_pos.detach().cpu().numpy()[0])
         link_name_pos = {key: link_pos[i, :] for i, key in enumerate(link_name)}
         # compute the relative pos from the COM l3 to COM l0
         relative_toe_xyz_l0 = {}
@@ -130,7 +136,7 @@ class WavegoRobot(LeggedRobot):
         """
         Computes observations
         """
-        time.sleep(0.1)
+        # time.sleep(0.1)
         # my observations
         self.dof_vel_from_deviation = (self.dof_pos - self.last_dof_pos) / self.dt
         self.obs_buf = torch.cat((
@@ -139,8 +145,42 @@ class WavegoRobot(LeggedRobot):
             self.commands[:, :3] * self.commands_scale,
             (self.dof_pos - self.default_dof_pos) * self.obs_scales.dof_pos,
             self.dof_vel_from_deviation * self.obs_scales.dof_vel,
-            self.actions
+            self.dof_pos
         ), dim=-1)
+        dof_pos = np.squeeze(self.dof_pos.detach().cpu().numpy())
+        dof_pos_target = np.squeeze(self.targets.detach().cpu().numpy())
+        dof_pos_error = dof_pos_target - dof_pos
+        self.dof_pos_errors.append(dof_pos_error)
+        self.dof_targets.append(dof_pos_target)
+        self.dof_pos_s.append(dof_pos)
+        if self.common_step_counter == 100:
+            legends = []
+            plt.subplot(311)
+            for i, dof_nam in enumerate(self.dof_names):
+                errors = np.asarray(self.dof_pos_errors)[:, i]
+                print(len(errors))
+                if 'j0' not in dof_nam:
+                    plt.plot(errors)
+                    legends.append(dof_nam)
+            plt.legend(legends)
+            legends = []
+            plt.subplot(312)
+            for i, dof_nam in enumerate(self.dof_names):
+                pos = np.asarray(self.dof_pos_s)[:, i]
+                if 'j0' not in dof_nam and 'j1' not in dof_nam:
+                    plt.plot(pos)
+                    legends.append(dof_nam)
+            plt.legend(legends)
+            legends = []
+            plt.subplot(313)
+            for i, dof_nam in enumerate(self.dof_names):
+                pos = np.asarray(self.dof_targets)[:, i]
+                if 'j0' not in dof_nam and 'j1' not in dof_nam:
+                    plt.plot(pos)
+                    legends.append(dof_nam)
+            plt.legend(legends)
+            plt.show()
+
         toe_pose = self.get_toe_pose()
         if self.debugger_mode != 'none':
             actions_scaled = np.squeeze(self.actions.detach().cpu().numpy()) * self.cfg.control.action_scale

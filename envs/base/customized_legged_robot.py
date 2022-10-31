@@ -46,11 +46,11 @@ from legged_gym.envs.base.base_task import BaseTask
 from legged_gym.utils.terrain import Terrain
 from legged_gym.utils.math import quat_apply_yaw, wrap_to_pi, torch_rand_sqrt_float
 from legged_gym.utils.helpers import class_to_dict
-from real_deployment.base_legged_robot_config import LeggedRobotCfg
-
+# from real_deployment.base_legged_robot_config import LeggedRobotCfg
+from envs.wavego_flat_config import WavegoFlatCfg
 
 class LeggedRobot(BaseTask):
-    def __init__(self, cfg: LeggedRobotCfg, sim_params, physics_engine, sim_device, headless):
+    def __init__(self, cfg: WavegoFlatCfg, sim_params, physics_engine, sim_device, headless):
         """ Parses the provided config file,
             calls create_sim() (which creates, simulation, terrain and environments),
             initilizes pytorch buffers used during training
@@ -87,9 +87,23 @@ class LeggedRobot(BaseTask):
         self.actions = torch.clip(actions, -clip_actions, clip_actions).to(self.device)
         # step physics and render each frame
         self.render()
+        if self.cfg.customize.add_toe_force:
+            self.refresh_forces_at_toe()
         for _ in range(self.cfg.control.decimation):
+            if self.cfg.customize.add_toe_force:
+                self.apply_forces_at_toe()
             self.torques = self._compute_torques(self.actions).view(self.torques.shape)
-            self.gym.set_dof_actuation_force_tensor(self.sim, gymtorch.unwrap_tensor(self.torques))
+            # self.gym.set_dof_actuation_force_tensor(self.sim, gymtorch.unwrap_tensor(self.torques))
+            # use set_dof_position_target_tensor(), position control
+            self.targets = self.cfg.control.action_scale * self.actions + self.default_dof_pos
+            # clip the targets
+            self.targets = torch.clip(self.targets, self.dof_pos_limits[:, 0], self.dof_pos_limits[:, 1])
+            # self.targets *= 0.0
+            if self.cfg.control.control_mode == 'pos':
+                self.gym.set_dof_position_target_tensor(self.sim, gymtorch.unwrap_tensor(self.targets))
+            else:
+                self.gym.set_dof_actuation_force_tensor(self.sim, gymtorch.unwrap_tensor(self.torques))
+
             self.gym.simulate(self.sim)
             if self.device == 'cpu':
                 self.gym.fetch_results(self.sim, True)
@@ -294,6 +308,8 @@ class LeggedRobot(BaseTask):
         Returns:
             [numpy.array]: Modified DOF properties
         """
+        if self.cfg.control.control_mode == 'pos':
+            props = self.get_modified_dof_props(props)
         if env_id == 0:
             self.dof_pos_limits = torch.zeros(self.num_dof, 2, dtype=torch.float, device=self.device,
                                               requires_grad=False)
@@ -310,6 +326,31 @@ class LeggedRobot(BaseTask):
                 self.dof_pos_limits[i, 0] = m - 0.5 * r * self.cfg.rewards.soft_dof_pos_limit
                 self.dof_pos_limits[i, 1] = m + 0.5 * r * self.cfg.rewards.soft_dof_pos_limit
         return props
+
+    def refresh_forces_at_toe(self):
+        # apply_rigid_body_force_at_pos_tensors(
+        #     self: Gym, sim: Sim, forceTensor: Tensor, posTensor: Tensor = None, space: CoordinateSpace = CoordinateSpace.ENV_SPACE)→ bool
+        x_range = 5.0  # N
+        y_range = 5.0  # N
+        z_range = 10  # N
+        # the final force tensor : (env_nums, 3)
+        random_forces_x = torch.rand(self.num_envs, 1) * 2 * x_range - x_range
+        random_forces_y = torch.rand(self.num_envs, 1) * 2 * y_range - y_range
+        random_forces_z = torch.rand(self.num_envs, 1) * 2 * z_range - z_range
+        # change force in self.external_forces
+        for i, name in enumerate(self.body_names):
+            # change only one leg is enough
+            if 'fr_l3' in name:
+                self.external_forces[..., i, 0] = random_forces_x
+                self.external_forces[..., i, 1] = random_forces_y
+                self.external_forces[..., i, 2] = random_forces_z
+
+    def apply_forces_at_toe(self):
+         # self.toe_forces = torch.rand(self.toe_forces)
+        self.gym.apply_rigid_body_force_at_pos_tensors(self.sim,
+                                                       forceTensor=gymtorch.unwrap_tensor(self.external_forces),
+                                                       posTensor=gymtorch.unwrap_tensor(self.external_forces_pos),
+                                                       space=gymapi.LOCAL_SPACE)
 
     def _process_rigid_body_props(self, props, env_id):
         # if env_id==0:
@@ -379,6 +420,8 @@ class LeggedRobot(BaseTask):
         """
         # pd controller
         actions_scaled = actions * self.cfg.control.action_scale
+        # actions_scaled[0, 4] = -0.35
+        # actions_scaled[0, 5] = 0.8
         control_type = self.cfg.control.control_type
         if control_type == "P":
             torques = self.p_gains * (
@@ -390,6 +433,8 @@ class LeggedRobot(BaseTask):
             torques = actions_scaled
         else:
             raise NameError(f"Unknown controller type: {control_type}")
+        rigid_contact_info = self.contact_forces
+        # self.gym.ENV_SPACE
         return torch.clip(torques, -self.torque_limits, self.torque_limits)
 
     def _reset_dofs(self, env_ids):
@@ -547,6 +592,10 @@ class LeggedRobot(BaseTask):
         self.actions = torch.zeros(self.num_envs, self.num_actions, dtype=torch.float, device=self.device,
                                    requires_grad=False)
         self.last_actions = torch.zeros(self.num_envs, self.num_actions, dtype=torch.float, device=self.device,
+                                        requires_grad=False)
+        self.external_forces = torch.zeros(self.num_envs, self.num_bodies, 3, dtype=torch.float, device=self.device,
+                                        requires_grad=False)
+        self.external_forces_pos = torch.zeros(self.num_envs, self.num_bodies, 3, dtype=torch.float, device=self.device,
                                         requires_grad=False)
         self.last_dof_vel = torch.zeros_like(self.dof_vel)
         self.last_root_vel = torch.zeros_like(self.root_states[:, 7:13])
@@ -753,6 +802,24 @@ class LeggedRobot(BaseTask):
             self.termination_contact_indices[i] = self.gym.find_actor_rigid_body_handle(self.envs[0],
                                                                                         self.actor_handles[0],
                                                                                         termination_contact_names[i])
+
+    def get_modified_dof_props(self, props):
+        for i in range(self.num_envs):
+            for j in range(self.num_dof):
+                props['driveMode'][j] = gymapi.DOF_MODE_POS
+                name = self.dof_names[j]
+                for dof_name in self.cfg.control.stiffness.keys():
+                    if dof_name in name:
+                        props['stiffness'][j] = self.cfg.control.stiffness[dof_name]
+                        props['damping'][j] = self.cfg.control.damping[dof_name]
+                        # self.p_gains[j] = self.cfg.control.stiffness[dof_name]
+                        # self.d_gains[j] = self.cfg.control.damping[dof_name]
+                        if 'j2' in dof_name:  # add more effort to j2
+                            props['effort'][j] = 0.23
+                        else:
+                            props['effort'][j] = 0.23
+                props['friction'][j] = 0.0
+        return props
 
     def _get_env_origins(self):
         """ Sets environment origins. On rough terrain the origins are defined by the terrain platforms.

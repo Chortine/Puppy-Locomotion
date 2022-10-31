@@ -135,7 +135,7 @@ class RealPipeline:
         'rr_j0', 'rr_j1', 'rr_j2']
         """
         # default_joint_angles = self.env_cfg.init_state.default_joint_angles
-        scaled_rl_action = scaled_rl_action[0, :]
+        scaled_rl_action = np.squeeze(scaled_rl_action)
         print(f'scaled_rl_action {scaled_rl_action}')
         self.last_scaled_actions = scaled_rl_action
         target_joint_angles = {}

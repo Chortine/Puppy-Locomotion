@@ -18,7 +18,7 @@ if __name__ == '__main__':
     debugger_mode = 'replay'
     if debugger_mode != 'none':
         debugger = TransitionDebugger(mode=debugger_mode, sequence_len=100,
-                                    transition_path=os.path.join(deployment_folder, 'data'))
+                                      transition_path=os.path.join(deployment_folder, 'data'))
     agent = RealAgent(default_env_cfg=WavegoFlatCfg(), default_train_cfg=WavegoFlatCfgPPO())
     robot = RPInterface(config={"log": True})
     # robot.light_ctrl("magenta")
@@ -38,7 +38,7 @@ if __name__ == '__main__':
     # rl_step_interval = sim_dt * decimation
     rl_step_interval = 1 / 10
     scaled_rl_action = torch.Tensor(np.zeros(12))
-    command = [0]*12
+    command = [0] * 12
     # TODO: Frequency control
     while True:
         # i = 10
