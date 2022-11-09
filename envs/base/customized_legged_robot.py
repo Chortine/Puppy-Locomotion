@@ -69,6 +69,7 @@ class LeggedRobot(BaseTask):
         self.debug_viz = False
         self.init_done = False
         self._parse_cfg(self.cfg)
+        self.pd_all_envs = self.cfg.customize.pd_all_envs
         super().__init__(self.cfg, sim_params, physics_engine, sim_device, headless)
 
         if not self.headless:
@@ -309,7 +310,7 @@ class LeggedRobot(BaseTask):
             [numpy.array]: Modified DOF properties
         """
         if self.cfg.control.control_mode == 'pos':
-            props = self.get_modified_dof_props(props)
+            props = self.get_modified_dof_props(props, env_id)
         if env_id == 0:
             self.dof_pos_limits = torch.zeros(self.num_dof, 2, dtype=torch.float, device=self.device,
                                               requires_grad=False)
@@ -328,22 +329,40 @@ class LeggedRobot(BaseTask):
         return props
 
     def refresh_forces_at_toe(self):
-        # apply_rigid_body_force_at_pos_tensors(
-        #     self: Gym, sim: Sim, forceTensor: Tensor, posTensor: Tensor = None, space: CoordinateSpace = CoordinateSpace.ENV_SPACE)→ bool
+        """
+        For each rl steps, refresh the external force disturbance
+        """
         x_range = 5.0  # N
         y_range = 5.0  # N
         z_range = 10  # N
         # the final force tensor : (env_nums, 3)
-        random_forces_x = torch.rand(self.num_envs, 1) * 2 * x_range - x_range
-        random_forces_y = torch.rand(self.num_envs, 1) * 2 * y_range - y_range
-        random_forces_z = torch.rand(self.num_envs, 1) * 2 * z_range - z_range
+        # same force for all envs, but different forces for different legs
+        fr_xyz = np.random.uniform(low=[-x_range, -y_range, -z_range], high=[x_range, y_range, z_range])
+        fl_xyz = np.random.uniform(low=[-x_range, -y_range, -z_range], high=[x_range, y_range, z_range])
+        rl_xyz = np.random.uniform(low=[-x_range, -y_range, -z_range], high=[x_range, y_range, z_range])
+        rr_xyz = np.random.uniform(low=[-x_range, -y_range, -z_range], high=[x_range, y_range, z_range])
+
+        # random_forces_x = torch.rand(self.num_envs) * 2 * x_range - x_range
+        # random_forces_y = torch.rand(self.num_envs) * 2 * y_range - y_range
+        # random_forces_z = torch.rand(self.num_envs) * 2 * z_range - z_range
         # change force in self.external_forces
+        tensor_fr_xyz = torch.Tensor(fr_xyz).repeat(self.num_envs, 1)
+        tensor_fl_xyz = torch.Tensor(fl_xyz).repeat(self.num_envs, 1)
+        tensor_rl_xyz = torch.Tensor(rl_xyz).repeat(self.num_envs, 1)
+        tensor_rr_xyz = torch.Tensor(rr_xyz).repeat(self.num_envs, 1)
+
         for i, name in enumerate(self.body_names):
             # change only one leg is enough
             if 'fr_l3' in name:
-                self.external_forces[..., i, 0] = random_forces_x
-                self.external_forces[..., i, 1] = random_forces_y
-                self.external_forces[..., i, 2] = random_forces_z
+                self.external_forces[..., i, :] = tensor_fr_xyz
+            if 'fl_l3' in name:
+                self.external_forces[..., i, :] = tensor_fl_xyz
+            if 'rl_l3' in name:
+                self.external_forces[..., i, :] = tensor_rl_xyz
+            if 'rr_l3' in name:
+                self.external_forces[..., i, :] = tensor_rr_xyz
+
+        return
 
     def apply_forces_at_toe(self):
          # self.toe_forces = torch.rand(self.toe_forces)
@@ -570,6 +589,8 @@ class LeggedRobot(BaseTask):
         self.link_state = gymtorch.wrap_tensor(link_state_tensor)
         self.dof_pos = self.dof_state.view(self.num_envs, self.num_dof, 2)[..., 0]
         self.dof_vel = self.dof_state.view(self.num_envs, self.num_dof, 2)[..., 1]
+        self.dof_errors = torch.zeros_like(self.dof_pos)
+        self.mean_dof_errors = torch.zeros(self.num_envs, 1, dtype=torch.float, device=self.device, requires_grad=False)
 
         self.link_pos = self.link_state.view(self.num_envs, self.num_bodies, 13)[..., 0:3]
 
@@ -803,22 +824,32 @@ class LeggedRobot(BaseTask):
                                                                                         self.actor_handles[0],
                                                                                         termination_contact_names[i])
 
-    def get_modified_dof_props(self, props):
-        for i in range(self.num_envs):
-            for j in range(self.num_dof):
-                props['driveMode'][j] = gymapi.DOF_MODE_POS
-                name = self.dof_names[j]
-                for dof_name in self.cfg.control.stiffness.keys():
-                    if dof_name in name:
-                        props['stiffness'][j] = self.cfg.control.stiffness[dof_name]
-                        props['damping'][j] = self.cfg.control.damping[dof_name]
+    def get_modified_dof_props(self, props, env_id):
+        for dof in range(self.num_dof):
+            props['driveMode'][dof] = gymapi.DOF_MODE_POS
+            name = self.dof_names[dof]
+            for dof_name in self.cfg.control.stiffness.keys():
+                if dof_name in name:
+                    if self.pd_all_envs is not None:
+                        if '_j0' in dof_name:
+                            props['stiffness'][dof] = self.pd_all_envs[env_id][0]
+                            props['damping'][dof] = self.pd_all_envs[env_id][3]
+                        elif '_j1' in dof_name:
+                            props['stiffness'][dof] = self.pd_all_envs[env_id][1]
+                            props['damping'][dof] = self.pd_all_envs[env_id][4]
+                        elif '_j2' in dof_name:
+                            props['stiffness'][dof] = self.pd_all_envs[env_id][2]
+                            props['damping'][dof] = self.pd_all_envs[env_id][5]
+                    else:
+                        props['stiffness'][dof] = self.cfg.control.stiffness[dof_name]
+                        props['damping'][dof] = self.cfg.control.damping[dof_name]
                         # self.p_gains[j] = self.cfg.control.stiffness[dof_name]
                         # self.d_gains[j] = self.cfg.control.damping[dof_name]
-                        if 'j2' in dof_name:  # add more effort to j2
-                            props['effort'][j] = 0.23
-                        else:
-                            props['effort'][j] = 0.23
-                props['friction'][j] = 0.0
+                    if 'j2' in dof_name:  # add more effort to j2
+                        props['effort'][dof] = 0.23
+                    else:
+                        props['effort'][dof] = 0.23
+            props['friction'][dof] = 0.0
         return props
 
     def _get_env_origins(self):

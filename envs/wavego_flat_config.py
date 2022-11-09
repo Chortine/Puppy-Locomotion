@@ -52,7 +52,6 @@ var_dt = 0.001
 var_control_mode = 'pos'
 
 """
-
 hang_test
 walk_test
 """
@@ -81,8 +80,21 @@ hind_j2_d = 0.01
 
 
 class WavegoFlatCfg(LeggedRobotCfg):
-    class customize():
+    class customize:
         add_toe_force = True
+        collect_errors = False
+        pd_all_envs = None
+        debugger_mode = 'none'
+        debugger_sequence_len = 500
+        observation_states = [   # the order matters
+            'row_pitch',
+            'angular_v',
+            'top_commands',
+            'dof_pos',
+            'dof_vel',
+            'dof_action',
+            'projected_gravity'
+        ]
 
     class init_state(LeggedRobotCfg.init_state):
         pos = var_init_pos  # x,y,z [m]
@@ -157,7 +169,7 @@ class WavegoFlatCfg(LeggedRobotCfg):
         }
 
         for k, v in stiffness.items():
-            stiffness[k] += 200
+            stiffness[k] += 10
 
         damping = {
             'fr_j0': fore_j0_d,
@@ -177,7 +189,7 @@ class WavegoFlatCfg(LeggedRobotCfg):
             'rl_j2': hind_j2_d
         }
         for k, v in damping.items():
-            damping[k] *= 10
+            damping[k] *= 1
 
         # action scale: target angle = actionScale * action + defaultAngle
         action_scale = var_action_scale

@@ -2,6 +2,7 @@
 import time
 
 from envs.base.customized_legged_robot import LeggedRobot
+from isaacgym.torch_utils import get_euler_xyz, quat_rotate_inverse
 import torch
 import numpy as np
 from collections import deque
@@ -10,30 +11,35 @@ import pickle
 from real_deployment.transition_debugger import TransitionDebugger
 import matplotlib.pyplot as plt
 
+
 class WavegoRobot(LeggedRobot):
+    """
+    The robot env
+    """
     def __init__(self, cfg, sim_params, physics_engine, sim_device, headless):
         super().__init__(cfg, sim_params, physics_engine, sim_device, headless)
         self.sim_device = sim_device
         # self.action = None
-        self.debugger_mode = 'none'
-        if self.debugger_mode != 'none':
-            self.debugger = TransitionDebugger(mode=self.debugger_mode, sequence_len=500,
+        if self.cfg.customize.debugger_mode != 'none':
+            self.debugger = TransitionDebugger(mode=self.cfg.customize.debugger_mode, sequence_len=self.cfg.customize.debugger_sequence_len,
                                                transition_path='/home/tianchu/Documents/code_qy/puppy-gym/envs/data')
 
     def _init_buffers(self):
         super()._init_buffers()
-        self.dof_vel_from_deviation = torch.zeros_like(self.dof_vel)
         self.last_dof_pos = torch.zeros_like(self.dof_pos)
         self.last_dof_pos[:] = self.default_dof_pos[:]
-        self.dof_pos_errors = []
-        self.dof_pos_s = []
-        self.dof_targets = []
+        self.error_add_count = 0
 
     def step(self, actions):
         start_time = time.time()
         super().step(actions)
         # self.action = np.squeeze(actions.detach().cpu().numpy())
         # add Nan exception
+        self.nan_check()
+        print(f'===== sim step time {(time.time() - start_time) / self.cfg.control.decimation}')
+        return self.obs_buf, self.privileged_obs_buf, self.rew_buf, self.reset_buf, self.extras
+
+    def nan_check(self):
         nan_array = torch.isnan(self.obs_buf)
         nan_idx = nan_array.nonzero().squeeze(-1)
         if len(nan_idx) > 0:
@@ -55,9 +61,6 @@ class WavegoRobot(LeggedRobot):
                 tmp = nan_idx.detach().cpu().numpy()
                 tmp = np.unique(tmp[:, 0])
                 print(f'!!! Still has nan on env {tmp}')
-        print(f'===== sim step time {(time.time() - start_time)/self.cfg.control.decimation}')
-        print(f'fl_j1 vel is {self.dof_vel[0, 1]}')
-        return self.obs_buf, self.privileged_obs_buf, self.rew_buf, self.reset_buf, self.extras
 
     def get_toe_pose(self):
         """
@@ -138,58 +141,28 @@ class WavegoRobot(LeggedRobot):
         """
         # time.sleep(0.1)
         # my observations
-        self.dof_vel_from_deviation = (self.dof_pos - self.last_dof_pos) / self.dt
-        self.obs_buf = torch.cat((
-            self.base_ang_vel * self.obs_scales.ang_vel,  # 3
-            # self.projected_gravity,  # 3
-            self.commands[:, :3] * self.commands_scale,
-            (self.dof_pos - self.default_dof_pos) * self.obs_scales.dof_pos,
-            self.dof_vel_from_deviation * self.obs_scales.dof_vel,
-            self.dof_pos
-        ), dim=-1)
-        dof_pos = np.squeeze(self.dof_pos.detach().cpu().numpy())
-        dof_pos_target = np.squeeze(self.targets.detach().cpu().numpy())
-        dof_pos_error = dof_pos_target - dof_pos
-        self.dof_pos_errors.append(dof_pos_error)
-        self.dof_targets.append(dof_pos_target)
-        self.dof_pos_s.append(dof_pos)
-        if self.common_step_counter == 100:
-            legends = []
-            plt.subplot(311)
-            for i, dof_nam in enumerate(self.dof_names):
-                errors = np.asarray(self.dof_pos_errors)[:, i]
-                print(len(errors))
-                if 'j0' not in dof_nam:
-                    plt.plot(errors)
-                    legends.append(dof_nam)
-            plt.legend(legends)
-            legends = []
-            plt.subplot(312)
-            for i, dof_nam in enumerate(self.dof_names):
-                pos = np.asarray(self.dof_pos_s)[:, i]
-                if 'j0' not in dof_nam and 'j1' not in dof_nam:
-                    plt.plot(pos)
-                    legends.append(dof_nam)
-            plt.legend(legends)
-            legends = []
-            plt.subplot(313)
-            for i, dof_nam in enumerate(self.dof_names):
-                pos = np.asarray(self.dof_targets)[:, i]
-                if 'j0' not in dof_nam and 'j1' not in dof_nam:
-                    plt.plot(pos)
-                    legends.append(dof_nam)
-            plt.legend(legends)
-            plt.show()
-
-        toe_pose = self.get_toe_pose()
-        if self.debugger_mode != 'none':
-            actions_scaled = np.squeeze(self.actions.detach().cpu().numpy()) * self.cfg.control.action_scale
-            # if self.action is not None:
-            if self.debugger_mode == 'collect':
-                self.debugger.step(obs=self.obs_buf.detach().cpu(), action=actions_scaled, toe_pose=toe_pose)
-            elif self.debugger_mode == 'replay':
-                obs = self.debugger.step(obs=self.obs_buf.detach().cpu(), action=actions_scaled, toe_pose=toe_pose)
-                self.obs_buf = torch.tensor(obs, device=self.sim_device)
+        dof_vel_from_deviation = (self.dof_pos - self.last_dof_pos) / self.dt
+        roll, pitch, _ = get_euler_xyz(self.base_quat)
+        s_roll, c_roll, s_pitch, c_pitch = torch.unsqueeze(torch.sin(roll), 1), torch.unsqueeze(torch.cos(roll), 1), \
+                                           torch.unsqueeze(torch.sin(pitch), 1), torch.unsqueeze(torch.cos(pitch), 1)
+        obs_list = []
+        for state in self.cfg.customize.observation_states:
+            if state == 'angular_v':
+                obs_list.append(self.base_ang_vel * self.obs_scales.ang_vel)
+            elif state == 'row_pitch':
+                obs_list.append(s_roll)
+                obs_list.append(c_roll)
+                obs_list.append(s_pitch)
+                obs_list.append(c_pitch)
+            elif state == 'top_commands':
+                obs_list.append(self.commands[:, :3] * self.commands_scale)
+            elif state == 'dof_pos':
+                obs_list.append((self.dof_pos - self.default_dof_pos) * self.obs_scales.dof_pos)
+            elif state == 'dof_vel':
+                obs_list.append(dof_vel_from_deviation * self.obs_scales.dof_vel)
+            elif state == 'dof_action':
+                obs_list.append(self.actions)
+        self.obs_buf = torch.cat(obs_list, dim=-1)
 
         # add perceptive inputs if not blind
         if self.cfg.terrain.measure_heights:
@@ -200,9 +173,64 @@ class WavegoRobot(LeggedRobot):
         if self.add_noise:
             self.obs_buf += (2 * torch.rand_like(self.obs_buf) - 1) * self.noise_scale_vec
 
-        self.last_dof_pos[:] = self.dof_pos[:]
+    def post_physics_step(self):
+        """ check terminations, compute observations and rewards
+            calls self._post_physics_step_callback() for common computations
+            calls self._draw_debug_vis() if needed
+        """
+        self.gym.refresh_actor_root_state_tensor(self.sim)
+        self.gym.refresh_net_contact_force_tensor(self.sim)
 
-    # def render(self):
+        self.episode_length_buf += 1
+        self.common_step_counter += 1
+
+        # prepare quantities
+        self.base_quat[:] = self.root_states[:, 3:7]
+        self.base_lin_vel[:] = quat_rotate_inverse(self.base_quat, self.root_states[:, 7:10])
+        self.base_ang_vel[:] = quat_rotate_inverse(self.base_quat, self.root_states[:, 10:13])
+        self.projected_gravity[:] = quat_rotate_inverse(self.base_quat, self.gravity_vec)
+
+        self._post_physics_step_callback()
+
+        # compute observations, rewards, resets, ...
+        self.check_termination()
+        self.compute_reward()
+        env_ids = self.reset_buf.nonzero(as_tuple=False).flatten()
+        self.reset_idx(env_ids)
+        self.compute_observations()  # in some cases a simulation step might be required to refresh some obs (for example body positions)
+
+        # collect errors for pd_search
+        if self.cfg.customize.collect_errors:
+            dof_pos_error = torch.abs(self.targets - self.dof_pos)
+            self.dof_errors += dof_pos_error
+            self.error_add_count += 1
+            self.mean_dof_errors = torch.mean(self.dof_errors, dim=-1) / self.error_add_count
+            # if self.debugger.replay_done:
+            if self.common_step_counter == 100:
+                # print only the first robot's error
+                robot_0_dof_error = self.mean_dof_errors[0]
+                robot_0_dof_error = robot_0_dof_error.detach().cpu().numpy()
+                print(f'replay done; the first robot dof error is {robot_0_dof_error}')
+
+        # collect debugger data
+        if self.cfg.customize.debugger_mode != 'none':
+            toe_pose = self.get_toe_pose()
+            actions_scaled = np.squeeze(self.actions.detach().cpu().numpy()) * self.cfg.control.action_scale
+            # if self.action is not None:
+            if self.cfg.customize.debugger_mode == 'collect':
+                self.debugger.step(obs=self.obs_buf.detach().cpu(), action=actions_scaled, toe_pose=toe_pose)
+            elif self.cfg.customize.debugger_mode == 'replay':
+                obs = self.debugger.step(obs=self.obs_buf.detach().cpu(), action=actions_scaled, toe_pose=toe_pose)
+                obs = obs[0].repeat(self.num_envs, 1)
+                self.obs_buf = torch.tensor(obs, device=self.sim_device)
+
+        self.last_dof_pos[:] = self.dof_pos[:]
+        self.last_actions[:] = self.actions[:]
+        self.last_dof_vel[:] = self.dof_vel[:]
+        self.last_root_vel[:] = self.root_states[:, 7:13]
+
+        if self.viewer and self.enable_viewer_sync and self.debug_viz:
+            self._draw_debug_vis()
 
     def _reward_energy(self):
         return torch.sum(torch.abs(self.torques) * torch.abs(self.dof_vel), dim=1)

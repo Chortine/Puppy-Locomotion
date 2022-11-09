@@ -35,6 +35,7 @@ class TransitionDebugger:
             self.real_obs_deque = deque(maxlen=sequence_len)
             self.real_action_deque = deque(maxlen=sequence_len)
             self.real_toe_pose_deque = deque(maxlen=sequence_len)
+        self.transitions_saved = False
 
     def step(self, obs, action, toe_pose):
         print(f'obs lefted to replay {len(self.obs_deque)}')
@@ -49,33 +50,50 @@ class TransitionDebugger:
             self.action_deque.append(action)
             self.toe_pose_deque.append(toe_pose)
 
-            if len(self.obs_deque) == self.sequence_len:
+            if self.replay_done and not self.transitions_saved:
                 # save the data_dict
                 data_dict = {'obs_deque': self.obs_deque,
                              'action_deque': self.action_deque,
                              'toe_pose_deque': self.toe_pose_deque}
-
                 with open(os.path.join(self.transition_path, 'transitions.pickle'), 'wb') as handle:
                     pickle.dump(data_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
+                self.transitions_saved = True
                 print('++++++++++ transitions data saved !!')
+            elif self.replay_done:
+                print('+++++ collect done and transitions data saved !!!')
 
         elif self.mode == 'replay':
-            if len(self.real_action_deque) < self.sequence_len - 1:
+            if not self.replay_done:
                 obs = self.obs_deque.popleft()
                 self.real_obs_deque.append(obs)
                 self.real_action_deque.append(action)
                 self.real_toe_pose_deque.append(toe_pose)
-            elif len(self.real_action_deque) == self.sequence_len - 1:
-                self.real_action_deque.append(action)
+            elif not self.transitions_saved:
                 data_dict = {'obs_deque': self.real_obs_deque,
                              'action_deque': self.real_action_deque,
                              'toe_pose_deque': self.real_toe_pose_deque}
                 with open(os.path.join(self.transition_path, 'replay_transitions.pickle'), 'wb') as handle:
                     pickle.dump(data_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
+                self.transitions_saved = True
                 print('++++++++++ replay transitions data saved !!')
                 self._compare()
-
+            else:
+                print('+++++ replay done and replay transitions data saved !!!')
         return obs
+
+    @property
+    def replay_done(self):
+        """
+        If finish the replay deque
+        :return:
+        """
+        if self.mode == 'replay' and len(self.obs_deque) == 0:
+            return True
+
+        if self.mode == 'collect' and len(self.obs_deque) == self.sequence_len:
+            return True
+
+        return False
 
     def _compare(self):
         """

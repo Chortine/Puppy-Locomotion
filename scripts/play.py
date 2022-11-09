@@ -45,7 +45,7 @@ import torch
 def play(args):
     # args.task = "a1_flat"
     args.task = "wavego_flat"
-    args.num_envs = 1
+    args.num_envs = 10
     ckpt_path = '/home/tianchu/Documents/code_qy/puppy-gym/logs/model_2000.pt'
     env_cfg, train_cfg = task_registry.get_cfgs(name=args.task)
     # override some parameters for testing
