@@ -10,7 +10,7 @@ import os, sys
 import pickle
 from real_deployment.transition_debugger import TransitionDebugger
 import matplotlib.pyplot as plt
-
+current_folder = os.path.dirname(__file__)
 
 class WavegoRobot(LeggedRobot):
     """
@@ -19,21 +19,24 @@ class WavegoRobot(LeggedRobot):
     def __init__(self, cfg, sim_params, physics_engine, sim_device, headless):
         super().__init__(cfg, sim_params, physics_engine, sim_device, headless)
         self.sim_device = sim_device
-        # self.action = None
         if self.cfg.customize.debugger_mode != 'none':
             self.debugger = TransitionDebugger(mode=self.cfg.customize.debugger_mode, sequence_len=self.cfg.customize.debugger_sequence_len,
-                                               transition_path='/home/tianchu/Documents/code_qy/puppy-gym/envs/data')
+                                               transition_path=os.path.join(current_folder, 'data'))
 
     def _init_buffers(self):
         super()._init_buffers()
         self.last_dof_pos = torch.zeros_like(self.dof_pos)
         self.last_dof_pos[:] = self.default_dof_pos[:]
         self.error_add_count = 0
+        self.sequence_dof_pos = deque(maxlen=self.cfg.customize.state_sequence_len)
+        self.sequence_dof_action = deque(maxlen=self.cfg.customize.state_sequence_len)
+        for i in range(self.cfg.customize.state_sequence_len):
+            self.sequence_dof_pos.append(self.default_dof_pos.repeat(self.num_envs, 1) * self.obs_scales.dof_pos)
+            self.sequence_dof_action.append(self.actions)
 
     def step(self, actions):
         start_time = time.time()
         super().step(actions)
-        # self.action = np.squeeze(actions.detach().cpu().numpy())
         # add Nan exception
         self.nan_check()
         print(f'===== sim step time {(time.time() - start_time) / self.cfg.control.decimation}')
@@ -162,6 +165,11 @@ class WavegoRobot(LeggedRobot):
                 obs_list.append(dof_vel_from_deviation * self.obs_scales.dof_vel)
             elif state == 'dof_action':
                 obs_list.append(self.actions)
+            elif state == 'sequence_dof_pos':
+                obs_list.extend(list(self.sequence_dof_pos))
+            elif state == 'sequence_dof_action':
+                obs_list.extend(list(self.sequence_dof_action))
+
         self.obs_buf = torch.cat(obs_list, dim=-1)
 
         # add perceptive inputs if not blind
@@ -180,6 +188,8 @@ class WavegoRobot(LeggedRobot):
         """
         self.gym.refresh_actor_root_state_tensor(self.sim)
         self.gym.refresh_net_contact_force_tensor(self.sim)
+        self.sequence_dof_pos.append((self.dof_pos - self.default_dof_pos) * self.obs_scales.dof_pos)
+        self.sequence_dof_action.append(self.actions)
 
         self.episode_length_buf += 1
         self.common_step_counter += 1
