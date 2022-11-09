@@ -12,8 +12,8 @@ j2 = -15  # from -45 to 30
 var_init_pos = [0.0, 0.0, 0.1]
 var_fix_base_link = False
 var_action_scale = 0.25
-var_decimation = 100
-var_dt = 0.001
+var_decimation = 25
+var_dt = 0.002
 var_control_mode = 'pos'
 
 """

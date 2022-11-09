@@ -39,7 +39,7 @@ class WavegoRobot(LeggedRobot):
         super().step(actions)
         # add Nan exception
         self.nan_check()
-        print(f'===== sim step time {(time.time() - start_time) / self.cfg.control.decimation}')
+        # print(f'===== sim step time {(time.time() - start_time) / self.cfg.control.decimation}')
         return self.obs_buf, self.privileged_obs_buf, self.rew_buf, self.reset_buf, self.extras
 
     def nan_check(self):
