@@ -21,8 +21,8 @@ var_control_mode = 'pos'
 hang_test
 walk_test
 """
-unique_p = 40.26
-unique_d = 0.20
+unique_p = None
+unique_d = None
 
 # ===== stiffness ====== #
 if unique_p is not None:
@@ -38,14 +38,14 @@ if unique_p is not None:
 
 else:
     # fore legs
-    fore_j0_p = 2.0
-    fore_j1_p = 0.4
-    fore_j2_p = 0.5
+    fore_j0_p = 3.0
+    fore_j1_p = 1.5
+    fore_j2_p = 1.5
 
     # hind legs
-    hind_j0_p = 2.0
-    hind_j1_p = 0.5
-    hind_j2_p = 0.8
+    hind_j0_p = 3.0
+    hind_j1_p = 1.5
+    hind_j2_p = 1.5
 
 # ===== damping ======= #
 if unique_d is not None:
@@ -72,8 +72,8 @@ else:
 legs_name = ['rr', 'rl', 'fr', 'fl']
 
 observation_states_size = OrderedDict({  # the order matters
-    'sequence_dof_pos': 50 * 12,
-    'sequence_dof_action': 50 * 12,
+    # 'sequence_dof_pos': 50 * 12,
+    # 'sequence_dof_action': 50 * 12,
     'row_pitch': 4,
     'angular_v': 3,
     'top_commands': 3,
@@ -123,7 +123,7 @@ class WavegoFlatCfg(LeggedRobotCfg):
         heading_command = True  # if true: compute ang vel command from heading error
 
         class ranges:
-            lin_vel_x = [0.8, 0.8]  # min max [m/s]
+            lin_vel_x = [0.1, 0.2]  # min max [m/s]
             lin_vel_y = [-0.0, 0.0]  # min max [m/s]
             ang_vel_yaw = [-0, 0]  # min max [rad/s]
             heading = [0, 0]
@@ -174,7 +174,7 @@ class WavegoFlatCfg(LeggedRobotCfg):
         soft_dof_pos_limit = 0.9
         base_height_target = 0.1
         tracking_sigma = 0.05  # tracking reward = exp(-error^2/sigma)
-        only_positive_rewards = False
+        only_positive_rewards = True
 
         class scales(LeggedRobotCfg.rewards.scales):
             tracking_lin_vel = 4.0
@@ -185,7 +185,7 @@ class WavegoFlatCfg(LeggedRobotCfg):
             feet_air_time = 0.1  # 1.0
 
             termination = -0.0
-            lin_vel_z = -1.
+            lin_vel_z = -0.1
             ang_vel_xy = -0.05
             orientation = -0.
             dof_vel = -0.
