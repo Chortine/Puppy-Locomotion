@@ -36,7 +36,9 @@ from legged_gym.envs import *
 import os, sys
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from envs.register import *
-from legged_gym.utils import get_args, export_policy_as_jit, task_registry, Logger
+from legged_gym.utils import get_args, export_policy_as_jit, Logger
+
+from rl_utils.task_registry import task_registry
 
 import numpy as np
 import torch
@@ -45,8 +47,8 @@ import torch
 def play(args):
     # args.task = "a1_flat"
     args.task = "wavego_flat"
-    args.num_envs = 10
-    # ckpt_path = '/home/tianchu/Documents/code_qy/puppy-gym/logs/model_2000.pt'
+    args.num_envs = 50
+    ckpt_path = '/home/tianchu/Documents/code_qy/puppy-gym/logs/Nov09_18-06-05_run1/model_4000.pt'
     env_cfg, train_cfg = task_registry.get_cfgs(name=args.task)
     # override some parameters for testing
     env_cfg.env.num_envs = min(env_cfg.env.num_envs, 50)
@@ -76,7 +78,7 @@ def play(args):
     logger = Logger(env.dt)
     robot_index = 0  # which robot is used for logging
     joint_index = 1  # which joint is used for logging
-    stop_state_log = 100  # number of steps before plotting states
+    stop_state_log = 200  # number of steps before plotting states
     stop_rew_log = env.max_episode_length + 1  # number of steps before print average episode rewards
     camera_position = np.array(env_cfg.viewer.pos, dtype=np.float64)
     camera_vel = np.array([1., 1., 0.])
@@ -125,7 +127,7 @@ def play(args):
 
 
 if __name__ == '__main__':
-    EXPORT_POLICY = True
+    EXPORT_POLICY = False
     RECORD_FRAMES = False
     MOVE_CAMERA = False
     args = get_args()

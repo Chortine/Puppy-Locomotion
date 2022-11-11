@@ -10,21 +10,29 @@ import os, sys
 import pickle
 from real_deployment.transition_debugger import TransitionDebugger
 import matplotlib.pyplot as plt
+
 current_folder = os.path.dirname(__file__)
+
 
 class WavegoRobot(LeggedRobot):
     """
     The robot env
     """
+
     def __init__(self, cfg, sim_params, physics_engine, sim_device, headless):
         super().__init__(cfg, sim_params, physics_engine, sim_device, headless)
         self.sim_device = sim_device
         if self.cfg.customize.debugger_mode != 'none':
-            self.debugger = TransitionDebugger(mode=self.cfg.customize.debugger_mode, sequence_len=self.cfg.customize.debugger_sequence_len,
+            self.debugger = TransitionDebugger(mode=self.cfg.customize.debugger_mode,
+                                               sequence_len=self.cfg.customize.debugger_sequence_len,
                                                transition_path=os.path.join(current_folder, 'data'))
 
     def _init_buffers(self):
         super()._init_buffers()
+        # self.obs_buf = {
+        #     state: torch.zeros(self.num_envs, size, device=self.device, dtype=torch.float) for state, size in
+        #     self.cfg.customize.observation_states_size.items()
+        # }
         self.last_dof_pos = torch.zeros_like(self.dof_pos)
         self.last_dof_pos[:] = self.default_dof_pos[:]
         self.error_add_count = 0
@@ -40,6 +48,13 @@ class WavegoRobot(LeggedRobot):
         # add Nan exception
         self.nan_check()
         # print(f'===== sim step time {(time.time() - start_time) / self.cfg.control.decimation}')
+        # return self.obs_buf, self.privileged_obs_buf, self.rew_buf, self.reset_buf, self.extras
+
+        # self.obs_buf = {
+        #     state: torch.zeros(self.num_envs, size, device=self.device, dtype=torch.float) for state, size in
+        #     self.cfg.customize.observation_states_size.items()
+        # }
+
         return self.obs_buf, self.privileged_obs_buf, self.rew_buf, self.reset_buf, self.extras
 
     def nan_check(self):

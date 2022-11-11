@@ -1,4 +1,5 @@
 from real_deployment.base_legged_robot_config import LeggedRobotCfg, LeggedRobotCfgPPO
+from collections import OrderedDict
 
 import numpy as np
 import os, sys
@@ -20,8 +21,8 @@ var_control_mode = 'pos'
 hang_test
 walk_test
 """
-unique_p = 50.26
-unique_d = 0.39
+unique_p = 40.26
+unique_d = 0.20
 
 # ===== stiffness ====== #
 if unique_p is not None:
@@ -70,6 +71,17 @@ else:
 
 legs_name = ['rr', 'rl', 'fr', 'fl']
 
+observation_states_size = OrderedDict({  # the order matters
+    'sequence_dof_pos': 50 * 12,
+    'sequence_dof_action': 50 * 12,
+    'row_pitch': 4,
+    'angular_v': 3,
+    'top_commands': 3,
+    'dof_pos': 12,
+    'dof_vel': 12,
+    'dof_action': 12,
+})
+
 
 class WavegoFlatCfg(LeggedRobotCfg):
     class customize:
@@ -78,17 +90,9 @@ class WavegoFlatCfg(LeggedRobotCfg):
         pd_all_envs = None
         debugger_mode = 'none'
         debugger_sequence_len = 500
-        state_sequence_len = 100
-        observation_states = [  # the order matters
-            'row_pitch',
-            'angular_v',
-            'top_commands',
-            'dof_pos',
-            'dof_vel',
-            'dof_action',
-            'sequence_dof_pos',
-            'sequence_dof_action'
-        ]
+        state_sequence_len = 50
+        observation_states = list(observation_states_size.keys())
+        observation_states_size = observation_states_size
 
     class init_state(LeggedRobotCfg.init_state):
         pos = var_init_pos  # x,y,z [m]
@@ -100,7 +104,7 @@ class WavegoFlatCfg(LeggedRobotCfg):
             default_joint_angles[f'{leg}_j2'] = np.radians(j2)
 
     class env(LeggedRobotCfg.env):
-        num_observations = 42 + 4 + 100*12*2
+        num_observations = sum(list(observation_states_size.values()))
         episode_length_s = 50
 
     class sim(LeggedRobotCfg.sim):
@@ -193,13 +197,14 @@ class WavegoFlatCfg(LeggedRobotCfg):
             energy = -0.0
 
     class domain_rand(LeggedRobotCfg.domain_rand):
-        randomize_friction = False
-        friction_range = [0, 2]
+        randomize_friction = True
+        friction_range = [0.1, 0.3]
         randomize_base_mass = False
         added_mass_ratio_range = [-0.2, 0.2]
-        push_robots = False
+        push_robots = True
         push_interval_s = 5
-        max_push_vel_xy = 1.
+        max_push_vel_xy = 0.15
+
         randomize_dof_friction = False
         dof_friction_range = [0, 2]
         randomize_pd = False
@@ -208,6 +213,10 @@ class WavegoFlatCfg(LeggedRobotCfg):
 
 class WavegoFlatCfgPPO(LeggedRobotCfgPPO):
     seed = 10
+    class policy(LeggedRobotCfgPPO.policy):
+        observation_states = list(observation_states_size.keys())
+        observation_states_size = dict(observation_states_size)
+        activation = 'sigmoid'
 
     class algorithm(LeggedRobotCfgPPO.algorithm):
         entropy_coef = 0.01
