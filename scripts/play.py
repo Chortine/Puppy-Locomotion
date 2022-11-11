@@ -47,8 +47,8 @@ import torch
 def play(args):
     # args.task = "a1_flat"
     args.task = "wavego_flat"
-    args.num_envs = 50
-    ckpt_path = '/home/tianchu/Documents/code_qy/puppy-gym/logs/Nov09_18-06-05_run1/model_4000.pt'
+    args.num_envs = 5
+    ckpt_path = '/home/tianchu/Documents/code_qy/puppy-gym/logs/Nov11_11-15-25_run1/model_100.pt'
     env_cfg, train_cfg = task_registry.get_cfgs(name=args.task)
     # override some parameters for testing
     env_cfg.env.num_envs = min(env_cfg.env.num_envs, 50)
@@ -65,7 +65,7 @@ def play(args):
     # load policy
     train_cfg.runner.resume = False
     ppo_runner, train_cfg = task_registry.make_alg_runner(env=env, name=args.task, args=args, train_cfg=train_cfg)
-    # ppo_runner.load(ckpt_path)
+    ppo_runner.load(ckpt_path)
 
     policy = ppo_runner.get_inference_policy(device=env.device)
 

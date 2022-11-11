@@ -257,6 +257,7 @@ class ActorCritic(nn.Module):
 
     def act_inference(self, observations):
         actions_mean, self.value = self.policy(observations)
+        self.distribution = Normal(actions_mean, actions_mean * 0. + self.std)
         return actions_mean
 
     def evaluate(self, critic_observations, **kwargs):

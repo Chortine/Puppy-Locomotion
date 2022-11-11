@@ -123,7 +123,7 @@ class WavegoFlatCfg(LeggedRobotCfg):
         heading_command = True  # if true: compute ang vel command from heading error
 
         class ranges:
-            lin_vel_x = [0.1, 0.3]  # min max [m/s]
+            lin_vel_x = [0.8, 0.8]  # min max [m/s]
             lin_vel_y = [-0.0, 0.0]  # min max [m/s]
             ang_vel_yaw = [-0, 0]  # min max [rad/s]
             heading = [0, 0]
@@ -216,7 +216,7 @@ class WavegoFlatCfgPPO(LeggedRobotCfgPPO):
     class policy(LeggedRobotCfgPPO.policy):
         observation_states = list(observation_states_size.keys())
         observation_states_size = dict(observation_states_size)
-        activation = 'sigmoid'
+        activation = 'elu'
 
     class algorithm(LeggedRobotCfgPPO.algorithm):
         entropy_coef = 0.01
