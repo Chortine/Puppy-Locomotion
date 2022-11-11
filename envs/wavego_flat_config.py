@@ -225,5 +225,5 @@ class WavegoFlatCfgPPO(LeggedRobotCfgPPO):
     class runner(LeggedRobotCfgPPO.runner):
         run_name = 'run1'
         experiment_name = 'flat_wavego'
-        save_interval = 50
+        save_interval = 30
         max_iterations = 4000
