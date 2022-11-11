@@ -174,6 +174,7 @@ class WavegoFlatCfg(LeggedRobotCfg):
         soft_dof_pos_limit = 0.9
         base_height_target = 0.1
         tracking_sigma = 0.05  # tracking reward = exp(-error^2/sigma)
+        only_positive_rewards = False
 
         class scales(LeggedRobotCfg.rewards.scales):
             tracking_lin_vel = 4.0

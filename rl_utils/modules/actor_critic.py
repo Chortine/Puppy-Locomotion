@@ -259,6 +259,7 @@ class ActorCritic(nn.Module):
         actions_mean, self.value = self.policy(observations)
         self.distribution = Normal(actions_mean, actions_mean * 0. + self.std)
         return actions_mean
+        # return self.distribution.sample()
 
     def evaluate(self, critic_observations, **kwargs):
         raise NotImplementedError
