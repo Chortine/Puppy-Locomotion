@@ -65,7 +65,7 @@ def play(args):
     # load policy
     train_cfg.runner.resume = False
     ppo_runner, train_cfg = task_registry.make_alg_runner(env=env, name=args.task, args=args, train_cfg=train_cfg)
-    ppo_runner.load(ckpt_path)
+    # ppo_runner.load(ckpt_path)
 
     policy = ppo_runner.get_inference_policy(device=env.device)
     
