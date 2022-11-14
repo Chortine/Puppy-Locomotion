@@ -86,6 +86,7 @@ class ActorCriticNet(nn.Module):
             self.state_encoder_dict['common_encoder'] = self.common_encoder
             self.policy_input_size += 64
 
+        self.policy_input_size = 79
         # =============== base policy ================ #
         policy_layers = []
         policy_layers.append(nn.Linear(self.policy_input_size, actor_hidden_dims[0]))
@@ -112,47 +113,26 @@ class ActorCriticNet(nn.Module):
         self.critic = nn.Sequential(*critic_layers)
 
     def forward(self, obs_tensor):
-        X = []
-        start_idx = 0
-        copy_observation_states = copy.deepcopy(self.observation_states)
-        only_common_states = False
-        while not only_common_states and len(copy_observation_states) > 0:
-            state_name = copy_observation_states.pop(0)
-            if state_name in ['env_factor', 'sequence_dof_pos', 'sequence_dof_action']:
-                embedding = self.state_encoder_dict[state_name](obs_tensor[..., start_idx: start_idx+self.observation_states_size[state_name]])
-                X.append(embedding)
-                start_idx += self.observation_states_size[state_name]
-            else:
-                break
-
-        if len(copy_observation_states) > 0:
-            common_states = obs_tensor[..., start_idx:]
-            common_states_embedding = self.state_encoder_dict['common_encoder'](common_states)
-            X.append(common_states_embedding)
-
-        # for state in self.observation_states:
-        #     if state == ''
-        # if 'env_factor' in self.observation_states:
-        #     # encode the env_factor:
-        #     env_factor_embedding = self.env_factor_encoder(obs_dict['env_factor'])
-        #     X.append(env_factor_embedding)
-        # if 'sequence_dof_pos' in self.observation_states:
-        #     # encode the sequence of dof_pos
-        #     dof_pos_embedding = self.sequence_dof_pos_encoder(obs_dict['sequence_dof_pos'])
-        #     X.append(dof_pos_embedding)
-        # if 'sequence_dof_action' in self.observation_states:
-        #     dof_action_embedding = self.sequence_dof_action_encoder(obs_dict['sequence_dof_action'])
-        #     X.append(dof_action_embedding)
+        # X = []
+        # start_idx = 0
+        # copy_observation_states = copy.deepcopy(self.observation_states)
+        # only_common_states = False
+        # while not only_common_states and len(copy_observation_states) > 0:
+        #     state_name = copy_observation_states.pop(0)
+        #     if state_name in ['env_factor', 'sequence_dof_pos', 'sequence_dof_action']:
+        #         embedding = self.state_encoder_dict[state_name](obs_tensor[..., start_idx: start_idx+self.observation_states_size[state_name]])
+        #         X.append(embedding)
+        #         start_idx += self.observation_states_size[state_name]
+        #     else:
+        #         break
         #
-        # if len(self.copy_observation_states) > 0:
-        #     common_states = []
-        #     for state in self.copy_observation_states:
-        #         common_states.append(obs_dict[state])
-        #     common_states = torch.cat(common_states, dim=-1)
-        #     common_states_embedding = self.common_encoder(common_states)
+        # if len(copy_observation_states) > 0:
+        #     common_states = obs_tensor[..., start_idx:]
+        #     common_states_embedding = self.state_encoder_dict['common_encoder'](common_states)
         #     X.append(common_states_embedding)
 
-        X = torch.cat(X, dim=-1)
+        # X = torch.cat(X, dim=-1)
+        X = obs_tensor
         action_mean = self.base_policy(X)
         value = self.critic(X)
         return action_mean, value
