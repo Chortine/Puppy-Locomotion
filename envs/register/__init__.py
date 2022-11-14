@@ -2,7 +2,7 @@ from envs.wavego_flat_config import WavegoFlatCfg, WavegoFlatCfgPPO
 from envs.a1_flat_config import A1FlatCfg, A1FlatCfgPPO
 
 # from legged_gym.envs.base.legged_robot import LeggedRobot
-from envs.base.customized_legged_robot import LeggedRobot
+from envs.base.jing_legged_robot import LeggedRobot
 from envs.wavego_robot import WavegoRobot
 
 # from legged_gym.utils.task_registry import task_registry
