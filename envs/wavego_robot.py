@@ -1,7 +1,5 @@
 # from legged_gym.envs import LeggedRobot
-import time
-
-from envs.base.customized_legged_robot import LeggedRobot
+from envs.my_legged_robot import LeggedRobot
 from isaacgym.torch_utils import get_euler_xyz, quat_rotate_inverse
 import torch
 import numpy as np
@@ -10,8 +8,6 @@ import os, sys
 import pickle
 from real_deployment.transition_debugger import TransitionDebugger
 import matplotlib.pyplot as plt
-
-current_folder = os.path.dirname(__file__)
 
 
 class WavegoRobot(LeggedRobot):

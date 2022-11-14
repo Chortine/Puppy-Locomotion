@@ -51,6 +51,7 @@ from legged_gym.envs.base.legged_robot_config import LeggedRobotCfg
 
 class LeggedRobot(BaseTask):
     def __init__(self, cfg: LeggedRobotCfg, sim_params, physics_engine, sim_device, headless):
+        # print("==== init ====")
         """ Parses the provided config file,
             calls create_sim() (which creates, simulation, terrain and environments),
             initilizes pytorch buffers used during training
@@ -78,6 +79,7 @@ class LeggedRobot(BaseTask):
         self.init_done = True
 
     def step(self, actions):
+        # print("==== step ====")
         """ Apply actions, simulate, call self.post_physics_step()
 
         Args:
@@ -104,6 +106,7 @@ class LeggedRobot(BaseTask):
         return self.obs_buf, self.privileged_obs_buf, self.rew_buf, self.reset_buf, self.extras
 
     def post_physics_step(self):
+        # print("==== post_physics_step ====")
         """ check terminations, compute observations and rewards
             calls self._post_physics_step_callback() for common computations
             calls self._draw_debug_vis() if needed
@@ -137,6 +140,7 @@ class LeggedRobot(BaseTask):
             self._draw_debug_vis()
 
     def check_termination(self):
+        # print("==== check_termination ====")
         """ Check if environments need to be reset
         """
         self.reset_buf = torch.any(torch.norm(self.contact_forces[:, self.termination_contact_indices, :], dim=-1) > 1.,
@@ -145,6 +149,7 @@ class LeggedRobot(BaseTask):
         self.reset_buf |= self.time_out_buf
 
     def reset_idx(self, env_ids):
+        # print("==== reset_idx ====")
         """ Reset some environments.
             Calls self._reset_dofs(env_ids), self._reset_root_states(env_ids), and self._resample_commands(env_ids)
             [Optional] calls self._update_terrain_curriculum(env_ids), self.update_command_curriculum(env_ids) and
@@ -191,6 +196,7 @@ class LeggedRobot(BaseTask):
             self.extras["time_outs"] = self.time_out_buf
 
     def compute_reward(self):
+        # print("==== compute_reward ====")
         """ Compute rewards
             Calls each reward function which had a non-zero scale (processed in self._prepare_reward_function())
             adds each terms to the episode sums and to the total reward
@@ -210,6 +216,7 @@ class LeggedRobot(BaseTask):
             self.episode_sums["termination"] += rew
 
     def compute_observations(self):
+        # print("==== compute_observations ====")
         """ Computes observations
         """
         self.obs_buf = torch.cat((self.base_lin_vel * self.obs_scales.lin_vel,
@@ -230,6 +237,7 @@ class LeggedRobot(BaseTask):
             self.obs_buf += (2 * torch.rand_like(self.obs_buf) - 1) * self.noise_scale_vec
 
     def create_sim(self):
+        # print("==== create_sim ====")
         """ Creates simulation, terrain and evironments
         """
         self.up_axis_idx = 2  # 2 for z, 1 for y -> adapt gravity accordingly
@@ -249,6 +257,7 @@ class LeggedRobot(BaseTask):
         self._create_envs()
 
     def set_camera(self, position, lookat):
+        # print("==== set_camera ====")
         """ Set camera position and direction
         """
         cam_pos = gymapi.Vec3(position[0], position[1], position[2])
@@ -257,6 +266,7 @@ class LeggedRobot(BaseTask):
 
     # ------------- Callbacks --------------
     def _process_rigid_shape_props(self, props, env_id):
+        # print("==== _process_rigid_shape_props ====")
         """ Callback allowing to store/change/randomize the rigid shape properties of each environment.
             Called During environment creation.
             Base behavior: randomizes the friction of each environment
@@ -283,6 +293,7 @@ class LeggedRobot(BaseTask):
         return props
 
     def _process_dof_props(self, props, env_id):
+        # print("==== _process_dof_props ====")
         """ Callback allowing to store/change/randomize the DOF properties of each environment.
             Called During environment creation.
             Base behavior: stores position, velocity and torques limits defined in the URDF
@@ -309,9 +320,46 @@ class LeggedRobot(BaseTask):
                 r = self.dof_pos_limits[i, 1] - self.dof_pos_limits[i, 0]
                 self.dof_pos_limits[i, 0] = m - 0.5 * r * self.cfg.rewards.soft_dof_pos_limit
                 self.dof_pos_limits[i, 1] = m + 0.5 * r * self.cfg.rewards.soft_dof_pos_limit
+            for s in range(len(props)):
+                props['effort'][s] = 1
+                self.torque_limits[s] = 1
+
+        if self.cfg.domain_rand.randomize_dof_friction:
+            if env_id == 0:
+                # prepare friction randomization
+                friction_range = self.cfg.domain_rand.dof_friction_range
+                num_buckets = 64
+                bucket_ids = torch.randint(0, num_buckets, (self.num_envs, 1))
+                friction_buckets = torch_rand_float(friction_range[0], friction_range[1], (num_buckets, 1),
+                                                    device='cpu')
+                self.friction_coeffs = friction_buckets[bucket_ids]
+
+            for s in range(len(props)):
+                props['friction'][s] = self.friction_coeffs[env_id]
+
+        # if self.cfg.domain_rand.randomize_pd:
+        #     if env_id == 0:
+        #         # prepare pd randomization
+        #         stiffness_range = self.cfg.domain_rand.dof_stiffness_range
+        #         num_buckets = 64
+        #         bucket_ids = torch.randint(0, num_buckets, (self.num_envs, 1))
+        #         stiffness_buckets = torch_rand_float(stiffness_range[0], stiffness_range[1], (num_buckets, 1),
+        #                                              device='cpu')
+        #         self.stiffness_coeffs = stiffness_buckets[bucket_ids]
+            # for s in range(len(props)):
+            #     if s % 3 == 0:
+            #         props['stiffness'][s] = 2
+            #     elif s % 3 == 1:
+            #         props['stiffness'][s] = 0.4
+            #     else:
+            #         props['stiffness'][s] = 0.5
+            #     props['damping'][s] = 0.01
+            #     props['effort'][s] = 1.
+
         return props
 
     def _process_rigid_body_props(self, props, env_id):
+        # print("==== _process_rigid_body_props ====")
         # if env_id==0:
         #     sum = 0
         #     for i, p in enumerate(props):
@@ -398,6 +446,7 @@ class LeggedRobot(BaseTask):
         return torch.clip(torques, -self.torque_limits, self.torque_limits)
 
     def _reset_dofs(self, env_ids):
+        # print("==== _reset_dofs ====")
         """ Resets DOF position and velocities of selected environmments
         Positions are randomly selected within 0.5:1.5 x default positions.
         Velocities are set to zero.
@@ -415,6 +464,7 @@ class LeggedRobot(BaseTask):
                                               gymtorch.unwrap_tensor(env_ids_int32), len(env_ids_int32))
 
     def _reset_root_states(self, env_ids):
+        # print("==== _reset_root_states ====")
         """ Resets ROOT states position and velocities of selected environmments
             Sets base position based on the curriculum
             Selects randomized base velocities within -0.5:0.5 [m/s, rad/s]
@@ -439,6 +489,7 @@ class LeggedRobot(BaseTask):
                                                      gymtorch.unwrap_tensor(env_ids_int32), len(env_ids_int32))
 
     def _push_robots(self):
+        # print("==== _push_robots ====")
         """ Random pushes the robots. Emulates an impulse by setting a randomized base velocity.
         """
         max_vel = self.cfg.domain_rand.max_push_vel_xy
@@ -447,6 +498,7 @@ class LeggedRobot(BaseTask):
         self.gym.set_actor_root_state_tensor(self.sim, gymtorch.unwrap_tensor(self.root_states))
 
     def _update_terrain_curriculum(self, env_ids):
+        # print("==== _update_terrain_curriculum ====")
         """ Implements the game-inspired curriculum.
 
         Args:
@@ -472,6 +524,7 @@ class LeggedRobot(BaseTask):
         self.env_origins[env_ids] = self.terrain_origins[self.terrain_levels[env_ids], self.terrain_types[env_ids]]
 
     def update_command_curriculum(self, env_ids):
+        # print("==== update_command_curriculum ====")
         """ Implements a curriculum of increasing commands
 
         Args:
@@ -513,6 +566,7 @@ class LeggedRobot(BaseTask):
 
     # ----------------------------------------
     def _init_buffers(self):
+        # print("==== _init_buffers ====")
         """ Initialize torch tensors which will contain simulation states and processed quantities
         """
         # get gym GPU state tensors
@@ -601,6 +655,7 @@ class LeggedRobot(BaseTask):
         self.default_dof_pos = self.default_dof_pos.unsqueeze(0)
 
     def _prepare_reward_function(self):
+        # print("==== _prepare_reward_function ====")
         """ Prepares a list of reward functions, whcih will be called to compute the total reward.
             Looks for self._reward_<REWARD_NAME>, where <REWARD_NAME> are names of all non zero reward scales in the cfg.
         """
@@ -627,6 +682,7 @@ class LeggedRobot(BaseTask):
             for name in self.reward_scales.keys()}
 
     def _create_ground_plane(self):
+        # print("==== _create_ground_plane ====")
         """ Adds a ground plane to the simulation, sets friction and restitution based on the cfg.
         """
         plane_params = gymapi.PlaneParams()
@@ -637,6 +693,7 @@ class LeggedRobot(BaseTask):
         self.gym.add_ground(self.sim, plane_params)
 
     def _create_heightfield(self):
+        # print("==== _create_heightfield ====")
         """ Adds a heightfield terrain to the simulation, sets parameters based on the cfg.
         """
         hf_params = gymapi.HeightFieldParams()
@@ -657,6 +714,7 @@ class LeggedRobot(BaseTask):
                                                                             self.terrain.tot_cols).to(self.device)
 
     def _create_trimesh(self):
+        # print("==== _create_trimesh ====")
         """ Adds a triangle mesh terrain to the simulation, sets parameters based on the cfg.
         # """
         tm_params = gymapi.TriangleMeshParams()
@@ -675,6 +733,7 @@ class LeggedRobot(BaseTask):
                                                                             self.terrain.tot_cols).to(self.device)
 
     def _create_envs(self):
+        # print("==== _create_envs ====")
         """ Creates environments:
              1. loads the robot URDF/MJCF asset,
              2. For each environment
@@ -771,6 +830,7 @@ class LeggedRobot(BaseTask):
                                                                                         termination_contact_names[i])
 
     def _get_env_origins(self):
+        # print("==== _get_env_origins ====")
         """ Sets environment origins. On rough terrain the origins are defined by the terrain platforms.
             Otherwise create a grid.
         """
@@ -800,6 +860,7 @@ class LeggedRobot(BaseTask):
             self.env_origins[:, 2] = 0.
 
     def _parse_cfg(self, cfg):
+        # print("==== _parse_cfg ====")
         self.dt = self.cfg.control.decimation * self.sim_params.dt
         self.obs_scales = self.cfg.normalization.obs_scales
         self.reward_scales = class_to_dict(self.cfg.rewards.scales)
@@ -812,6 +873,7 @@ class LeggedRobot(BaseTask):
         self.cfg.domain_rand.push_interval = np.ceil(self.cfg.domain_rand.push_interval_s / self.dt)
 
     def _draw_debug_vis(self):
+        # print("==== _draw_debug_vis ====")
         """ Draws visualizations for dubugging (slows down simulation a lot).
             Default behaviour: draws height measurement points
         """
@@ -834,6 +896,7 @@ class LeggedRobot(BaseTask):
                 gymutil.draw_lines(sphere_geom, self.gym, self.viewer, self.envs[i], sphere_pose)
 
     def _init_height_points(self):
+        # print("==== _init_height_points ====")
         """ Returns points at which the height measurments are sampled (in base frame)
 
         Returns:
@@ -850,6 +913,7 @@ class LeggedRobot(BaseTask):
         return points
 
     def _get_heights(self, env_ids=None):
+        # print("==== _get_heights ====")
         """ Samples heights of the terrain at required points around each robot.
             The points are offset by the base's position and rotated by the base's yaw
 

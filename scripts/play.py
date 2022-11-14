@@ -33,12 +33,8 @@ import os
 
 import isaacgym
 from legged_gym.envs import *
-import os, sys
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-from envs.register import *
-from legged_gym.utils import get_args, export_policy_as_jit, Logger
-
-from rl_utils.task_registry import task_registry
+from envs import *
+from legged_gym.utils import  get_args, export_policy_as_jit, task_registry, Logger
 
 import numpy as np
 import torch
@@ -47,8 +43,10 @@ import torch
 def play(args):
     # args.task = "a1_flat"
     args.task = "wavego_flat"
-    args.num_envs = 5
-    ckpt_path = '/home/tianchu/Documents/code_qy/puppy-gym/logs/model_360.pt'
+    args.num_envs = 10
+    # ckpt_path = '/home/jingjing/PycharmProjects/puppy-bot/logs/train_11_2/model_2000_good.pt'
+    # ckpt_path = '/home/jingjing/PycharmProjects/puppy-bot/logs/good_train/largepd_good_train.pt'
+    ckpt_path = '/home/jingjing/PycharmProjects/puppy-bot/logs/train_11_10/model_1500.pt'
     env_cfg, train_cfg = task_registry.get_cfgs(name=args.task)
     # override some parameters for testing
     env_cfg.env.num_envs = min(env_cfg.env.num_envs, 50)
@@ -68,7 +66,7 @@ def play(args):
     # ppo_runner.load(ckpt_path)
 
     policy = ppo_runner.get_inference_policy(device=env.device)
-
+    
     # export policy as a jit module (used to run it from C++)
     if EXPORT_POLICY:
         path = os.path.join(LEGGED_GYM_ROOT_DIR, 'logs', train_cfg.runner.experiment_name, 'exported', 'policies')
@@ -76,24 +74,23 @@ def play(args):
         print('Exported policy as jit script to: ', path)
 
     logger = Logger(env.dt)
-    robot_index = 0  # which robot is used for logging
-    joint_index = 1  # which joint is used for logging
-    stop_state_log = 200  # number of steps before plotting states
-    stop_rew_log = env.max_episode_length + 1  # number of steps before print average episode rewards
+    robot_index = 0 # which robot is used for logging
+    joint_index = 1 # which joint is used for logging
+    stop_state_log = 100 # number of steps before plotting states
+    stop_rew_log = env.max_episode_length + 1 # number of steps before print average episode rewards
     camera_position = np.array(env_cfg.viewer.pos, dtype=np.float64)
     camera_vel = np.array([1., 1., 0.])
     camera_direction = np.array(env_cfg.viewer.lookat) - np.array(env_cfg.viewer.pos)
     img_idx = 0
 
-    for i in range(10 * int(env.max_episode_length)):
+    for i in range(10*int(env.max_episode_length)):
         actions = policy(obs.detach())
         obs, _, rews, dones, infos = env.step(actions.detach())
         if RECORD_FRAMES:
             if i % 2:
-                filename = os.path.join(LEGGED_GYM_ROOT_DIR, 'logs', train_cfg.runner.experiment_name, 'exported',
-                                        'frames', f"{img_idx}.png")
+                filename = os.path.join(LEGGED_GYM_ROOT_DIR, 'logs', train_cfg.runner.experiment_name, 'exported', 'frames', f"{img_idx}.png")
                 env.gym.write_viewer_image_to_file(env.viewer, filename)
-                img_idx += 1
+                img_idx += 1 
         if MOVE_CAMERA:
             camera_position += camera_vel * env.dt
             env.set_camera(camera_position, camera_position + camera_direction)
@@ -101,7 +98,7 @@ def play(args):
         if i < stop_state_log:
             logger.log_states(
                 {
-                    'dof_pos_target': actions[robot_index, joint_index].item() * env.cfg.control.action_scale,
+                    'dof_pos_target': actions[robot_index, joint_index].item() * env.cfg.control.action_scale + np.radians(15),
                     'dof_pos': env.dof_pos[robot_index, joint_index].item(),
                     'dof_vel': env.dof_vel[robot_index, joint_index].item(),
                     'dof_torque': env.torques[robot_index, joint_index].item(),
@@ -115,14 +112,14 @@ def play(args):
                     'contact_forces_z': env.contact_forces[robot_index, env.feet_indices, 2].cpu().numpy()
                 }
             )
-        elif i == stop_state_log:
+        elif i==stop_state_log:
             logger.plot_states()
-        if 0 < i < stop_rew_log:
+        if  0 < i < stop_rew_log:
             if infos["episode"]:
                 num_episodes = torch.sum(env.reset_buf).item()
-                if num_episodes > 0:
+                if num_episodes>0:
                     logger.log_rewards(infos["episode"], num_episodes)
-        elif i == stop_rew_log:
+        elif i==stop_rew_log:
             logger.print_rewards()
 
 

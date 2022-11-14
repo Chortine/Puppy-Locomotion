@@ -36,9 +36,8 @@ print(sys.path)
 print(__file__)
 import isaacgym
 from legged_gym.envs import *
-from envs.register import *
-from legged_gym.utils import get_args
-from rl_utils.task_registry import task_registry
+from envs import *
+from legged_gym.utils import get_args, task_registry
 import torch
 current_root = os.path.dirname(os.path.dirname(__file__))
 
