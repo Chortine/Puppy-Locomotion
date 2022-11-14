@@ -1,87 +1,123 @@
-# SPDX-FileCopyrightText: Copyright (c) 2021 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
-# SPDX-License-Identifier: BSD-3-Clause
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# 1. Redistributions of source code must retain the above copyright notice, this
-# list of conditions and the following disclaimer.
-#
-# 2. Redistributions in binary form must reproduce the above copyright notice,
-# this list of conditions and the following disclaimer in the documentation
-# and/or other materials provided with the distribution.
-#
-# 3. Neither the name of the copyright holder nor the names of its
-# contributors may be used to endorse or promote products derived from
-# this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
-# Copyright (c) 2021 ETH Zurich, Nikita Rudin
+from real_deployment.base_legged_robot_config import LeggedRobotCfg, LeggedRobotCfgPPO
+from collections import OrderedDict
 
-from legged_gym.envs.base.legged_robot_config import LeggedRobotCfg, LeggedRobotCfgPPO
 import numpy as np
 import os, sys
+
 current_root = os.path.dirname(os.path.dirname(__file__))
 # j0_default_ang = np.radians()
 j0 = 4  # from 90 to 0
 j1 = 15  # from 45 to -90
 j2 = -15  # from -45 to 30
 
+var_init_pos = [0.0, 0.0, 0.1]
+var_fix_base_link = False
+var_action_scale = 0.25
+var_decimation = 25
+var_dt = 0.002
+var_control_mode = 'pos'
+
+"""
+hang_test
+walk_test
+"""
+unique_p = None
+unique_d = None
+
+# ===== stiffness ====== #
+if unique_p is not None:
+    # fore legs
+    fore_j0_p = unique_p
+    fore_j1_p = unique_p
+    fore_j2_p = unique_p
+
+    # hind legs
+    hind_j0_p = unique_p
+    hind_j1_p = unique_p
+    hind_j2_p = unique_p
+
+else:
+    # fore legs
+    fore_j0_p = 3.0
+    fore_j1_p = 1.5
+    fore_j2_p = 1.5
+
+    # hind legs
+    hind_j0_p = 3.0
+    hind_j1_p = 1.5
+    hind_j2_p = 1.5
+
+# ===== damping ======= #
+if unique_d is not None:
+    # fore legs
+    fore_j0_d = unique_d
+    fore_j1_d = unique_d
+    fore_j2_d = unique_d
+
+    # hind legs
+    hind_j0_d = unique_d
+    hind_j1_d = unique_d
+    hind_j2_d = unique_d
+
+else:
+    fore_j0_d = 0.01
+    fore_j1_d = 0.01
+    fore_j2_d = 0.01
+
+    # hind legs
+    hind_j0_d = 0.01
+    hind_j1_d = 0.01
+    hind_j2_d = 0.01
+
+legs_name = ['rr', 'rl', 'fr', 'fl']
+
+obs_mem_len = 4
+
+observation_states_size = OrderedDict({  # the order matters
+    # 'sequence_dof_pos': 50 * 12,
+    # 'sequence_dof_action': 50 * 12,
+    'angular_v': 3 * obs_mem_len,
+    'row_pitch': 4 * obs_mem_len,
+    'top_commands': 3,
+    # 'dof_pos': 12,
+    # 'dof_vel': 12,
+    'dof_action': 12 * obs_mem_len,
+})
+
 
 class WavegoFlatCfg(LeggedRobotCfg):
     class customize:
-        add_toe_force = True
+        add_toe_force = False
         collect_errors = False
         pd_all_envs = None
-        debugger_mode = 'none'  # 'collect', 'none'
+        debugger_mode = 'none'
         debugger_sequence_len = 500
-        obs_mem_len = 4   # 0.15*4 = 0.6
+        state_sequence_len = 50
+        observation_states = list(observation_states_size.keys())
+        observation_states_size = observation_states_size
+        use_state_mem = True  # the adding memory way by wangjing
+        obs_mem_len = obs_mem_len   # 0.15*4 = 0.6
         obs_mem_skip = 3  # 3*0.05 = 0.15
-        num_envs = 10  #12000
+        # the on the plate task
+        add_plate = False
+        num_envs = 10
 
     class init_state(LeggedRobotCfg.init_state):
-        pos = [0.0, 0.0, 0.1]  # x,y,z [m]
+        pos = var_init_pos  # x,y,z [m]
         rot = [0.0, 0.0, 0.0, 1.0]  # x,y,z,w [quat]
-        # rot = [-0.25882, 0.0, 0.0, 0.965928]  # x,y,z,w [quat]
-
-        default_joint_angles = {  # = target angles [rad] when action = 0.0
-            'fr_j0': np.radians(j0),  # [rad]
-            'fr_j1': np.radians(j1),
-            'fr_j2': np.radians(j2),
-
-            'fl_j0': np.radians(j0),
-            'fl_j1': np.radians(j1),
-            'fl_j2': np.radians(j2),
-
-            'rr_j0': np.radians(j0),
-            'rr_j1': np.radians(j1),
-            'rr_j2': np.radians(j2),
-
-            'rl_j0': np.radians(j0),
-            'rl_j1': np.radians(j1),
-            'rl_j2': np.radians(j2),
-        }
+        default_joint_angles = {}
+        for leg in legs_name:
+            default_joint_angles[f'{leg}_j0'] = np.radians(j0)
+            default_joint_angles[f'{leg}_j1'] = np.radians(j1)
+            default_joint_angles[f'{leg}_j2'] = np.radians(j2)
 
     class env(LeggedRobotCfg.env):
-        num_observations = 79  # 42 + 4
+        num_observations = sum(list(observation_states_size.values()))
         episode_length_s = 50
 
     class sim(LeggedRobotCfg.sim):
-        dt = 0.002
+        dt = var_dt
         gravity = [0., 0., -9.81]  # [m/s^2]
-
-    # class normalization(LeggedRobotCfg.normalization):
-    #     clip_actions = 10
 
     class terrain(LeggedRobotCfg.terrain):
         mesh_type = 'plane'
@@ -96,8 +132,8 @@ class WavegoFlatCfg(LeggedRobotCfg):
 
         class ranges:
             lin_vel_x = [0.1, 0.2]  # min max [m/s]
-            lin_vel_y = [0.0, 0.0]  # min max [m/s]
-            ang_vel_yaw = [0, 0]  # min max [rad/s]
+            lin_vel_y = [-0.0, 0.0]  # min max [m/s]
+            ang_vel_yaw = [-0, 0]  # min max [rad/s]
             heading = [0, 0]
 
     class control(LeggedRobotCfg.control):
@@ -119,10 +155,10 @@ class WavegoFlatCfg(LeggedRobotCfg):
         }
 
         # action scale: target angle = actionScale * action + defaultAngle
-        action_scale = 0.25
-        # action_scale = 0.0
+        action_scale = var_action_scale
         # decimation: Number of control action updates @ sim DT per policy DT
-        decimation = 25
+        decimation = var_decimation
+        control_mode = var_control_mode
 
     class asset(LeggedRobotCfg.asset):
         file = os.path.join(current_root, 'meshes/wavego_v1/wavego_fix_j0.urdf')
@@ -133,12 +169,13 @@ class WavegoFlatCfg(LeggedRobotCfg):
         self_collisions = 1  # 1 to disable, 0 to enable...bitwise filter
         flip_visual_attachments = False
         disable_gravity = False
-        fix_base_link = False
+        fix_base_link = var_fix_base_link
 
     class rewards(LeggedRobotCfg.rewards):
         soft_dof_pos_limit = 0.9
         base_height_target = 0.1
         tracking_sigma = 0.05  # tracking reward = exp(-error^2/sigma)
+        only_positive_rewards = True
 
         class scales(LeggedRobotCfg.rewards.scales):
             tracking_lin_vel = 4.0
@@ -159,13 +196,14 @@ class WavegoFlatCfg(LeggedRobotCfg):
             feet_stumble = -0.0
             action_rate = -0.2  # -0.5
             stand_still = -0.1
+            energy = -0.0
 
     class domain_rand(LeggedRobotCfg.domain_rand):
-        randomize_friction = True  # TODO
+        randomize_friction = True
         friction_range = [0.1, 0.3]
         randomize_base_mass = False
-        added_mass_ratio_range = [-0.05, 0.1]
-        push_robots = True  # TODO
+        added_mass_ratio_range = [-0.2, 0.2]
+        push_robots = True
         push_interval_s = 5
         max_push_vel_xy = 0.15
 
@@ -184,6 +222,8 @@ class WavegoFlatCfg(LeggedRobotCfg):
 
 class WavegoFlatCfgPPO(LeggedRobotCfgPPO):
     class policy(LeggedRobotCfgPPO.policy):
+        observation_states = list(observation_states_size.keys())
+        observation_states_size = dict(observation_states_size)
         activation = 'elu'
 
     class algorithm(LeggedRobotCfgPPO.algorithm):
@@ -192,5 +232,5 @@ class WavegoFlatCfgPPO(LeggedRobotCfgPPO):
     class runner(LeggedRobotCfgPPO.runner):
         run_name = 'run1'
         experiment_name = 'flat_wavego'
-        save_interval = 50
+        save_interval = 30
         max_iterations = 4000
