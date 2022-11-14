@@ -100,7 +100,7 @@ class WavegoFlatCfg(LeggedRobotCfg):
         obs_mem_skip = 3  # 3*0.05 = 0.15
         # the on the plate task
         add_plate = False
-        num_envs = 12000
+        num_envs = 10
 
     class init_state(LeggedRobotCfg.init_state):
         pos = var_init_pos  # x,y,z [m]
