@@ -36,11 +36,32 @@ class WavegoRobot(LeggedRobot):
         self.last_dof_pos = torch.zeros_like(self.dof_pos)
         self.last_dof_pos[:] = self.default_dof_pos[:]
         self.error_add_count = 0
+
+        # =================== init obs sequence
         self.sequence_dof_pos = deque(maxlen=self.cfg.customize.state_sequence_len)
         self.sequence_dof_action = deque(maxlen=self.cfg.customize.state_sequence_len)
+
         for i in range(self.cfg.customize.state_sequence_len):
             self.sequence_dof_pos.append(self.default_dof_pos.repeat(self.num_envs, 1) * self.obs_scales.dof_pos)
             self.sequence_dof_action.append(self.actions)
+
+        # =================== init obs mem (shorter than sequence, and have skips)
+        self.obs_mem_skip = self.cfg.customize.obs_mem_skip
+        self.obs_mem_len = self.cfg.customize.obs_mem_len
+        mem_max_len = self.obs_mem_skip * self.obs_mem_len
+        self.mem = {"s_roll": deque(maxlen=mem_max_len),
+                    "c_roll": deque(maxlen=mem_max_len),
+                    "s_pitch": deque(maxlen=mem_max_len),
+                    "c_pitch": deque(maxlen=mem_max_len),
+                    "base_ang_vel": deque(maxlen=mem_max_len),
+                    "actions": deque(maxlen=mem_max_len)}
+        for i in range(mem_max_len):
+            self.mem["s_roll"].append(torch.zeros(self.num_envs, 1).cuda())
+            self.mem["c_roll"].append(torch.ones(self.num_envs, 1).cuda())
+            self.mem["s_pitch"].append(torch.zeros(self.num_envs, 1).cuda())
+            self.mem["c_pitch"].append(torch.ones(self.num_envs, 1).cuda())
+            self.mem["base_ang_vel"].append(torch.zeros(self.num_envs, 3).cuda())
+            self.mem["actions"].append(torch.zeros(self.num_envs, 12).cuda())
 
     def step(self, actions):
         start_time = time.time()
@@ -153,6 +174,25 @@ class WavegoRobot(LeggedRobot):
         toe_pos = np.concatenate(toe_pos)
         return toe_pos
 
+    def update_and_get_state_mem(self, s_roll, c_roll, s_pitch, c_pitch):
+
+        self.mem["s_roll"].append(s_roll)
+        self.mem["c_roll"].append(c_roll)
+        self.mem["s_pitch"].append(s_pitch)
+        self.mem["c_pitch"].append(c_pitch)
+        self.mem["base_ang_vel"].append(self.base_ang_vel * self.obs_scales.ang_vel)
+        if self.cfg.noise.add_noise:
+            self.mem["actions"].append(self.actions + 0.05*torch.rand(self.cfg.env.num_envs, 12).cuda())
+        else:
+            self.mem["actions"].append(self.actions)
+
+        result = {}
+        for key in self.mem.keys():
+            result[key] = self.mem[key][-1]
+            for i in range(self.obs_mem_len-1):
+                result[key] = torch.concat((result[key], self.mem[key][-1 - self.obs_mem_skip*i - self.obs_mem_skip]), 1)
+        return result
+
     def compute_observations(self):
         """
         Computes observations
@@ -161,17 +201,36 @@ class WavegoRobot(LeggedRobot):
         # my observations
         dof_vel_from_deviation = (self.dof_pos - self.last_dof_pos) / self.dt
         roll, pitch, _ = get_euler_xyz(self.base_quat)
+        if self.cfg.noise.add_noise:
+            # if add noise
+            roll += 0.1 * torch.rand(self.cfg.env.num_envs, ).cuda()
+            pitch += 0.1 * torch.rand(self.cfg.env.num_envs, ).cuda()
         s_roll, c_roll, s_pitch, c_pitch = torch.unsqueeze(torch.sin(roll), 1), torch.unsqueeze(torch.cos(roll), 1), \
                                            torch.unsqueeze(torch.sin(pitch), 1), torch.unsqueeze(torch.cos(pitch), 1)
+
+        # use mem state
+        if self.cfg.customize.use_state_mem:
+            mem_obs = self.update_and_get_state_mem(s_roll, c_roll, s_pitch, c_pitch)
+
+        # make obs_list
         obs_list = []
         for state in self.cfg.customize.observation_states:
             if state == 'angular_v':
-                obs_list.append(self.base_ang_vel * self.obs_scales.ang_vel)
+                if self.cfg.customize.use_state_mem:
+                    obs_list.append(mem_obs["base_ang_vel"])
+                else:
+                    obs_list.append(self.base_ang_vel * self.obs_scales.ang_vel)
             elif state == 'row_pitch':
-                obs_list.append(s_roll)
-                obs_list.append(c_roll)
-                obs_list.append(s_pitch)
-                obs_list.append(c_pitch)
+                if self.cfg.customize.use_state_mem:
+                    obs_list.append(mem_obs["s_roll"])
+                    obs_list.append(mem_obs["c_roll"])
+                    obs_list.append(mem_obs["s_pitch"])
+                    obs_list.append(mem_obs["c_pitch"])
+                else:
+                    obs_list.append(s_roll)
+                    obs_list.append(c_roll)
+                    obs_list.append(s_pitch)
+                    obs_list.append(c_pitch)
             elif state == 'top_commands':
                 obs_list.append(self.commands[:, :3] * self.commands_scale)
             elif state == 'dof_pos':
@@ -179,7 +238,10 @@ class WavegoRobot(LeggedRobot):
             elif state == 'dof_vel':
                 obs_list.append(dof_vel_from_deviation * self.obs_scales.dof_vel)
             elif state == 'dof_action':
-                obs_list.append(self.actions)
+                if self.cfg.customize.use_state_mem:
+                    obs_list.append(mem_obs["actions"])
+                else:
+                    obs_list.append(self.actions)
             elif state == 'sequence_dof_pos':
                 obs_list.extend(list(self.sequence_dof_pos))
             elif state == 'sequence_dof_action':
@@ -192,9 +254,7 @@ class WavegoRobot(LeggedRobot):
             heights = torch.clip(self.root_states[:, 2].unsqueeze(1) - 0.5 - self.measured_heights, -1,
                                  1.) * self.obs_scales.height_measurements
             self.obs_buf = torch.cat((self.obs_buf, heights), dim=-1)
-        # add noise if needed
-        if self.add_noise:
-            self.obs_buf += (2 * torch.rand_like(self.obs_buf) - 1) * self.noise_scale_vec
+
 
     def post_physics_step(self):
         """ check terminations, compute observations and rewards

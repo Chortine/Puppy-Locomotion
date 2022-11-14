@@ -544,30 +544,30 @@ class LeggedRobot(BaseTask):
             self.command_ranges["lin_vel_x"][1] = np.clip(self.command_ranges["lin_vel_x"][1] + 0.5, 0.,
                                                           self.cfg.commands.max_curriculum)
 
-    def _get_noise_scale_vec(self, cfg):
-        """ Sets a vector used to scale the noise added to the observations.
-            [NOTE]: Must be adapted when changing the observations structure
-
-        Args:
-            cfg (Dict): Environment config file
-
-        Returns:
-            [torch.Tensor]: Vector of scales used to multiply a uniform distribution in [-1, 1]
-        """
-        noise_vec = torch.zeros_like(self.obs_buf[0])
-        self.add_noise = self.cfg.noise.add_noise
-        noise_scales = self.cfg.noise.noise_scales
-        noise_level = self.cfg.noise.noise_level
-        noise_vec[:3] = noise_scales.lin_vel * noise_level * self.obs_scales.lin_vel
-        noise_vec[3:6] = noise_scales.ang_vel * noise_level * self.obs_scales.ang_vel
-        noise_vec[6:9] = noise_scales.gravity * noise_level
-        noise_vec[9:12] = 0.  # commands
-        noise_vec[12:24] = noise_scales.dof_pos * noise_level * self.obs_scales.dof_pos
-        noise_vec[24:36] = noise_scales.dof_vel * noise_level * self.obs_scales.dof_vel
-        noise_vec[36:48] = 0.  # previous actions
-        if self.cfg.terrain.measure_heights:
-            noise_vec[48:235] = noise_scales.height_measurements * noise_level * self.obs_scales.height_measurements
-        return noise_vec
+    # def _get_noise_scale_vec(self, cfg):
+    #     """ Sets a vector used to scale the noise added to the observations.
+    #         [NOTE]: Must be adapted when changing the observations structure
+    #
+    #     Args:
+    #         cfg (Dict): Environment config file
+    #
+    #     Returns:
+    #         [torch.Tensor]: Vector of scales used to multiply a uniform distribution in [-1, 1]
+    #     """
+    #     noise_vec = torch.zeros_like(self.obs_buf[0])
+    #     self.add_noise = self.cfg.noise.add_noise
+    #     noise_scales = self.cfg.noise.noise_scales
+    #     noise_level = self.cfg.noise.noise_level
+    #     noise_vec[:3] = noise_scales.lin_vel * noise_level * self.obs_scales.lin_vel
+    #     noise_vec[3:6] = noise_scales.ang_vel * noise_level * self.obs_scales.ang_vel
+    #     noise_vec[6:9] = noise_scales.gravity * noise_level
+    #     noise_vec[9:12] = 0.  # commands
+    #     noise_vec[12:24] = noise_scales.dof_pos * noise_level * self.obs_scales.dof_pos
+    #     noise_vec[24:36] = noise_scales.dof_vel * noise_level * self.obs_scales.dof_vel
+    #     noise_vec[36:48] = 0.  # previous actions
+    #     if self.cfg.terrain.measure_heights:
+    #         noise_vec[48:235] = noise_scales.height_measurements * noise_level * self.obs_scales.height_measurements
+    #     return noise_vec
 
     # ----------------------------------------
     def _init_buffers(self):
@@ -594,6 +594,7 @@ class LeggedRobot(BaseTask):
 
         self.link_pos = self.link_state.view(self.num_envs, self.num_bodies, 13)[..., 0:3]
 
+        self.root_states = self.root_states[:self.num_envs, ...]
         self.base_quat = self.root_states[:, 3:7]
 
         self.contact_forces = gymtorch.wrap_tensor(net_contact_forces).view(self.num_envs, -1,
@@ -602,7 +603,7 @@ class LeggedRobot(BaseTask):
         # initialize some data used later on
         self.common_step_counter = 0
         self.extras = {}
-        self.noise_scale_vec = self._get_noise_scale_vec(self.cfg)
+        # self.noise_scale_vec = self._get_noise_scale_vec(self.cfg)
         self.gravity_vec = to_torch(get_axis_params(-1., self.up_axis_idx), device=self.device).repeat(
             (self.num_envs, 1))
         self.forward_vec = to_torch([1., 0., 0.], device=self.device).repeat((self.num_envs, 1))
@@ -757,8 +758,14 @@ class LeggedRobot(BaseTask):
         asset_options.disable_gravity = self.cfg.asset.disable_gravity
 
         robot_asset = self.gym.load_asset(self.sim, asset_root, asset_file, asset_options)
+        plate_root = '/home/tianchu/Documents/code_qy/puppy-gym/meshes/wavego_v1'
+        plate_file = 'plate.urdf'
+        plate_asset = self.gym.load_asset(self.sim, plate_root, plate_file, asset_options)
         self.num_dof = self.gym.get_asset_dof_count(robot_asset)
-        self.num_bodies = self.gym.get_asset_rigid_body_count(robot_asset)
+        if self.cfg.customize.add_plate:
+            self.num_bodies = self.gym.get_asset_rigid_body_count(robot_asset) + self.gym.get_asset_rigid_body_count(plate_asset)
+        else:
+            self.num_bodies = self.gym.get_asset_rigid_body_count(robot_asset)
         dof_props_asset = self.gym.get_asset_dof_properties(robot_asset)
         rigid_shape_props_asset = self.gym.get_asset_rigid_shape_properties(robot_asset)
 
@@ -766,7 +773,7 @@ class LeggedRobot(BaseTask):
         body_names = self.gym.get_asset_rigid_body_names(robot_asset)
         self.dof_names = self.gym.get_asset_dof_names(robot_asset)
         self.body_names = body_names
-        self.num_bodies = len(body_names)
+        # self.num_bodies = len(body_names)
         self.num_dofs = len(self.dof_names)
         feet_names = [s for s in body_names if self.cfg.asset.foot_name in s]
         penalized_contact_names = []
@@ -804,6 +811,20 @@ class LeggedRobot(BaseTask):
             self.gym.set_actor_rigid_body_properties(env_handle, actor_handle, body_props, recomputeInertia=True)
             self.envs.append(env_handle)
             self.actor_handles.append(actor_handle)
+
+        if self.cfg.customize.add_plate:
+            # add env handle
+            start_pose = gymapi.Transform()
+            for i in range(self.num_envs):
+                pos = self.env_origins[i].clone()
+                # pos[:2] += torch_rand_float(-1., 1., (2, 1), device=self.device).squeeze(1)
+                start_pose.p = gymapi.Vec3(*pos)
+
+                # get env handle
+                env_handle = self.gym.get_env(self.sim, i)
+                # add plate as an actor
+                self.gym.create_actor(env_handle, plate_asset, start_pose, 'plate', i,
+                                      self.cfg.asset.self_collisions, 0)
 
         self.feet_indices = torch.zeros(len(feet_names), dtype=torch.long, device=self.device, requires_grad=False)
         for i in range(len(feet_names)):

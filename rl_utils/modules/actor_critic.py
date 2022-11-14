@@ -24,6 +24,8 @@ class ActorCriticNet(nn.Module):
 
         self.state_encoder_dict = {}
 
+        self.policy_input_size = 0
+
         # =============== encoders ================ #
         if 'env_factor' in self.observation_states:
             self.copy_observation_states.remove('env_factor')
@@ -37,6 +39,7 @@ class ActorCriticNet(nn.Module):
                 activation
             )
             self.state_encoder_dict['env_factor'] = self.env_factor_encoder
+            self.policy_input_size += 8
 
         if 'sequence_dof_pos' in self.observation_states:
             self.copy_observation_states.remove('sequence_dof_pos')
@@ -50,6 +53,7 @@ class ActorCriticNet(nn.Module):
                 activation
             )
             self.state_encoder_dict['sequence_dof_pos'] = self.sequence_dof_pos_encoder
+            self.policy_input_size += 16
 
         if 'sequence_dof_action' in self.observation_states:
             self.copy_observation_states.remove('sequence_dof_action')
@@ -63,6 +67,7 @@ class ActorCriticNet(nn.Module):
                 activation
             )
             self.state_encoder_dict['sequence_dof_action'] = self.sequence_dof_action_encoder
+            self.policy_input_size += 16
 
         # for other obs, will use common encoder
         self.common_encoder = None
@@ -75,14 +80,15 @@ class ActorCriticNet(nn.Module):
                 activation,
                 torch.nn.Linear(256, 128),
                 activation,
-                torch.nn.Linear(128, 16),
+                torch.nn.Linear(128, 64),
                 activation
             )
             self.state_encoder_dict['common_encoder'] = self.common_encoder
+            self.policy_input_size += 64
 
         # =============== base policy ================ #
         policy_layers = []
-        policy_layers.append(nn.Linear(48, actor_hidden_dims[0]))
+        policy_layers.append(nn.Linear(self.policy_input_size, actor_hidden_dims[0]))
         policy_layers.append(activation)
 
         for l in range(len(actor_hidden_dims)):
@@ -95,7 +101,7 @@ class ActorCriticNet(nn.Module):
 
         # =============== critic ================ #
         critic_layers = []
-        critic_layers.append(nn.Linear(48, critic_hidden_dims[0]))
+        critic_layers.append(nn.Linear(self.policy_input_size, critic_hidden_dims[0]))
         critic_layers.append(activation)
         for l in range(len(critic_hidden_dims)):
             if l == len(critic_hidden_dims) - 1:
@@ -258,8 +264,8 @@ class ActorCritic(nn.Module):
     def act_inference(self, observations):
         actions_mean, self.value = self.policy(observations)
         self.distribution = Normal(actions_mean, actions_mean * 0. + self.std)
-        return actions_mean
-        # return self.distribution.sample()
+        # return actions_mean
+        return self.distribution.sample()
 
     def evaluate(self, critic_observations, **kwargs):
         raise NotImplementedError

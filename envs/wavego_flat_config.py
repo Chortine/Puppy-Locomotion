@@ -71,15 +71,17 @@ else:
 
 legs_name = ['rr', 'rl', 'fr', 'fl']
 
+obs_mem_len = 4
+
 observation_states_size = OrderedDict({  # the order matters
     # 'sequence_dof_pos': 50 * 12,
     # 'sequence_dof_action': 50 * 12,
-    'row_pitch': 4,
-    'angular_v': 3,
+    'angular_v': 3 * obs_mem_len,
+    'row_pitch': 4 * obs_mem_len,
     'top_commands': 3,
-    'dof_pos': 12,
-    'dof_vel': 12,
-    'dof_action': 12,
+    # 'dof_pos': 12,
+    # 'dof_vel': 12,
+    'dof_action': 12 * obs_mem_len,
 })
 
 
@@ -93,6 +95,11 @@ class WavegoFlatCfg(LeggedRobotCfg):
         state_sequence_len = 50
         observation_states = list(observation_states_size.keys())
         observation_states_size = observation_states_size
+        use_state_mem = True  # the adding memory way by wangjing
+        obs_mem_len = obs_mem_len   # 0.15*4 = 0.6
+        obs_mem_skip = 3  # 3*0.05 = 0.15
+        # the on the plate task
+        add_plate = False
 
     class init_state(LeggedRobotCfg.init_state):
         pos = var_init_pos  # x,y,z [m]
@@ -213,7 +220,7 @@ class WavegoFlatCfg(LeggedRobotCfg):
 
 
 class WavegoFlatCfgPPO(LeggedRobotCfgPPO):
-    seed = 10
+    # seed = 10
     class policy(LeggedRobotCfgPPO.policy):
         observation_states = list(observation_states_size.keys())
         observation_states_size = dict(observation_states_size)
