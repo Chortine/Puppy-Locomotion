@@ -13,9 +13,9 @@ j2 = -15  # from -45 to 30
 var_init_pos = [0.0, 0.0, 0.1]
 var_fix_base_link = False
 var_action_scale = 0.25
-var_decimation = 25
+var_decimation = 16
 var_dt = 0.002
-var_relative_action = True
+var_relative_action = False
 var_control_mode = 'pos'
 if var_relative_action:
     var_relative_action = 'pos'  # in relative action case, can only use pos control
@@ -126,7 +126,7 @@ class WavegoFlatCfg(LeggedRobotCfg):
         gravity = [0., 0., -9.81]  # [m/s^2]
 
     class terrain(LeggedRobotCfg.terrain):
-        mesh_type = 'plane'
+        mesh_type = 'trimesh'
         measure_heights = False
 
     class commands:
