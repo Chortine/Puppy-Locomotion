@@ -69,6 +69,7 @@ class LeggedRobot(BaseTask):
         self.debug_viz = False
         self.init_done = False
         self._parse_cfg(self.cfg)
+        self.pd_all_envs = self.cfg.customize.pd_all_envs
         super().__init__(self.cfg, sim_params, physics_engine, sim_device, headless)
 
         if not self.headless:
@@ -87,9 +88,23 @@ class LeggedRobot(BaseTask):
         self.actions = torch.clip(actions, -clip_actions, clip_actions).to(self.device)
         # step physics and render each frame
         self.render()
+        if self.cfg.customize.add_toe_force:
+            self.refresh_forces_at_toe()
         for _ in range(self.cfg.control.decimation):
+            if self.cfg.customize.add_toe_force:
+                self.apply_forces_at_toe()
             self.torques = self._compute_torques(self.actions).view(self.torques.shape)
-            self.gym.set_dof_actuation_force_tensor(self.sim, gymtorch.unwrap_tensor(self.torques))
+            # self.gym.set_dof_actuation_force_tensor(self.sim, gymtorch.unwrap_tensor(self.torques))
+            # use set_dof_position_target_tensor(), position control
+            self.targets = self.cfg.control.action_scale * self.actions + self.default_dof_pos
+            # clip the targets
+            self.targets = torch.clip(self.targets, self.dof_pos_limits[:, 0], self.dof_pos_limits[:, 1])
+            # self.targets *= 0.0
+            if self.cfg.control.control_mode == 'pos':
+                self.gym.set_dof_position_target_tensor(self.sim, gymtorch.unwrap_tensor(self.targets))
+            else:
+                self.gym.set_dof_actuation_force_tensor(self.sim, gymtorch.unwrap_tensor(self.torques))
+
             self.gym.simulate(self.sim)
             if self.device == 'cpu':
                 self.gym.fetch_results(self.sim, True)
@@ -294,6 +309,8 @@ class LeggedRobot(BaseTask):
         Returns:
             [numpy.array]: Modified DOF properties
         """
+        if self.cfg.control.control_mode == 'pos':
+            props = self.get_modified_dof_props(props, env_id)
         if env_id == 0:
             self.dof_pos_limits = torch.zeros(self.num_dof, 2, dtype=torch.float, device=self.device,
                                               requires_grad=False)
@@ -311,6 +328,49 @@ class LeggedRobot(BaseTask):
                 self.dof_pos_limits[i, 1] = m + 0.5 * r * self.cfg.rewards.soft_dof_pos_limit
         return props
 
+    def refresh_forces_at_toe(self):
+        """
+        For each rl steps, refresh the external force disturbance
+        """
+        x_range = 5.0  # N
+        y_range = 5.0  # N
+        z_range = 10  # N
+        # the final force tensor : (env_nums, 3)
+        # same force for all envs, but different forces for different legs
+        fr_xyz = np.random.uniform(low=[-x_range, -y_range, -z_range], high=[x_range, y_range, z_range])
+        fl_xyz = np.random.uniform(low=[-x_range, -y_range, -z_range], high=[x_range, y_range, z_range])
+        rl_xyz = np.random.uniform(low=[-x_range, -y_range, -z_range], high=[x_range, y_range, z_range])
+        rr_xyz = np.random.uniform(low=[-x_range, -y_range, -z_range], high=[x_range, y_range, z_range])
+
+        # random_forces_x = torch.rand(self.num_envs) * 2 * x_range - x_range
+        # random_forces_y = torch.rand(self.num_envs) * 2 * y_range - y_range
+        # random_forces_z = torch.rand(self.num_envs) * 2 * z_range - z_range
+        # change force in self.external_forces
+        tensor_fr_xyz = torch.Tensor(fr_xyz).repeat(self.num_envs, 1)
+        tensor_fl_xyz = torch.Tensor(fl_xyz).repeat(self.num_envs, 1)
+        tensor_rl_xyz = torch.Tensor(rl_xyz).repeat(self.num_envs, 1)
+        tensor_rr_xyz = torch.Tensor(rr_xyz).repeat(self.num_envs, 1)
+
+        for i, name in enumerate(self.body_names):
+            # change only one leg is enough
+            if 'fr_l3' in name:
+                self.external_forces[..., i, :] = tensor_fr_xyz
+            if 'fl_l3' in name:
+                self.external_forces[..., i, :] = tensor_fl_xyz
+            if 'rl_l3' in name:
+                self.external_forces[..., i, :] = tensor_rl_xyz
+            if 'rr_l3' in name:
+                self.external_forces[..., i, :] = tensor_rr_xyz
+
+        return
+
+    def apply_forces_at_toe(self):
+         # self.toe_forces = torch.rand(self.toe_forces)
+        self.gym.apply_rigid_body_force_at_pos_tensors(self.sim,
+                                                       forceTensor=gymtorch.unwrap_tensor(self.external_forces),
+                                                       posTensor=gymtorch.unwrap_tensor(self.external_forces_pos),
+                                                       space=gymapi.LOCAL_SPACE)
+
     def _process_rigid_body_props(self, props, env_id):
         # if env_id==0:
         #     sum = 0
@@ -325,7 +385,6 @@ class LeggedRobot(BaseTask):
         return props
 
     def _post_physics_step_callback(self):
-        # print("==== _post_physics_step_callback ====")
         """ Callback called before computing terminations, rewards, and observations
             Default behaviour: Compute ang vel command based on target and heading, compute measured terrain heights and randomly push robots
         """
@@ -344,7 +403,6 @@ class LeggedRobot(BaseTask):
             self._push_robots()
 
     def _resample_commands(self, env_ids):
-        # print("==== _resample_commands ====")
         """ Randommly select commands of some environments
 
         Args:
@@ -369,7 +427,6 @@ class LeggedRobot(BaseTask):
         # self.commands[env_ids, :2] *= (torch.norm(self.commands[env_ids, :2], dim=1) > 0.2).unsqueeze(1)
 
     def _compute_torques(self, actions):
-        # print("==== _compute_torques ====")
         """ Compute torques from actions.
             Actions can be interpreted as position or velocity targets given to a PD controller, or directly as scaled torques.
             [NOTE]: torques must have the same dimension as the number of DOFs, even if some DOFs are not actuated.
@@ -382,6 +439,8 @@ class LeggedRobot(BaseTask):
         """
         # pd controller
         actions_scaled = actions * self.cfg.control.action_scale
+        # actions_scaled[0, 4] = -0.35
+        # actions_scaled[0, 5] = 0.8
         control_type = self.cfg.control.control_type
         if control_type == "P":
             torques = self.p_gains * (
@@ -393,8 +452,8 @@ class LeggedRobot(BaseTask):
             torques = actions_scaled
         else:
             raise NameError(f"Unknown controller type: {control_type}")
-        #print('++++')
-        #print("actions_scaled", actions_scaled)
+        rigid_contact_info = self.contact_forces
+        # self.gym.ENV_SPACE
         return torch.clip(torques, -self.torque_limits, self.torque_limits)
 
     def _reset_dofs(self, env_ids):
@@ -405,7 +464,7 @@ class LeggedRobot(BaseTask):
         Args:
             env_ids (List[int]): Environemnt ids
         """
-        self.dof_pos[env_ids] = self.default_dof_pos * torch_rand_float(-0.5, 1.5, (len(env_ids), self.num_dof),
+        self.dof_pos[env_ids] = self.default_dof_pos * torch_rand_float(0.5, 1.5, (len(env_ids), self.num_dof),
                                                                         device=self.device)
         self.dof_vel[env_ids] = 0.
 
@@ -485,31 +544,30 @@ class LeggedRobot(BaseTask):
             self.command_ranges["lin_vel_x"][1] = np.clip(self.command_ranges["lin_vel_x"][1] + 0.5, 0.,
                                                           self.cfg.commands.max_curriculum)
 
-    def _get_noise_scale_vec(self, cfg):
-        # print("==== _get_noise_scale_vec ====")
-        """ Sets a vector used to scale the noise added to the observations.
-            [NOTE]: Must be adapted when changing the observations structure
-
-        Args:
-            cfg (Dict): Environment config file
-
-        Returns:
-            [torch.Tensor]: Vector of scales used to multiply a uniform distribution in [-1, 1]
-        """
-        noise_vec = torch.zeros_like(self.obs_buf[0])
-        self.add_noise = self.cfg.noise.add_noise
-        noise_scales = self.cfg.noise.noise_scales
-        noise_level = self.cfg.noise.noise_level
-        noise_vec[:3] = noise_scales.lin_vel * noise_level * self.obs_scales.lin_vel
-        noise_vec[3:6] = noise_scales.ang_vel * noise_level * self.obs_scales.ang_vel
-        noise_vec[6:9] = noise_scales.gravity * noise_level
-        noise_vec[9:12] = 0.  # commands
-        noise_vec[12:24] = noise_scales.dof_pos * noise_level * self.obs_scales.dof_pos
-        noise_vec[24:36] = noise_scales.dof_vel * noise_level * self.obs_scales.dof_vel
-        noise_vec[36:48] = 0.  # previous actions
-        if self.cfg.terrain.measure_heights:
-            noise_vec[48:235] = noise_scales.height_measurements * noise_level * self.obs_scales.height_measurements
-        return noise_vec
+    # def _get_noise_scale_vec(self, cfg):
+    #     """ Sets a vector used to scale the noise added to the observations.
+    #         [NOTE]: Must be adapted when changing the observations structure
+    #
+    #     Args:
+    #         cfg (Dict): Environment config file
+    #
+    #     Returns:
+    #         [torch.Tensor]: Vector of scales used to multiply a uniform distribution in [-1, 1]
+    #     """
+    #     noise_vec = torch.zeros_like(self.obs_buf[0])
+    #     self.add_noise = self.cfg.noise.add_noise
+    #     noise_scales = self.cfg.noise.noise_scales
+    #     noise_level = self.cfg.noise.noise_level
+    #     noise_vec[:3] = noise_scales.lin_vel * noise_level * self.obs_scales.lin_vel
+    #     noise_vec[3:6] = noise_scales.ang_vel * noise_level * self.obs_scales.ang_vel
+    #     noise_vec[6:9] = noise_scales.gravity * noise_level
+    #     noise_vec[9:12] = 0.  # commands
+    #     noise_vec[12:24] = noise_scales.dof_pos * noise_level * self.obs_scales.dof_pos
+    #     noise_vec[24:36] = noise_scales.dof_vel * noise_level * self.obs_scales.dof_vel
+    #     noise_vec[36:48] = 0.  # previous actions
+    #     if self.cfg.terrain.measure_heights:
+    #         noise_vec[48:235] = noise_scales.height_measurements * noise_level * self.obs_scales.height_measurements
+    #     return noise_vec
 
     # ----------------------------------------
     def _init_buffers(self):
@@ -523,6 +581,7 @@ class LeggedRobot(BaseTask):
         self.gym.refresh_dof_state_tensor(self.sim)
         self.gym.refresh_actor_root_state_tensor(self.sim)
         self.gym.refresh_net_contact_force_tensor(self.sim)
+        self.gym.refresh_rigid_body_state_tensor(self.sim)
 
         # create some wrapper tensors for different slices
         self.root_states = gymtorch.wrap_tensor(actor_root_state)
@@ -530,25 +589,35 @@ class LeggedRobot(BaseTask):
         self.link_state = gymtorch.wrap_tensor(link_state_tensor)
         self.dof_pos = self.dof_state.view(self.num_envs, self.num_dof, 2)[..., 0]
         self.dof_vel = self.dof_state.view(self.num_envs, self.num_dof, 2)[..., 1]
-        self.base_quat = self.root_states[:, 3:7]
+        self.dof_errors = torch.zeros_like(self.dof_pos)
+        self.mean_dof_errors = torch.zeros(self.num_envs, 1, dtype=torch.float, device=self.device, requires_grad=False)
+
         self.link_pos = self.link_state.view(self.num_envs, self.num_bodies, 13)[..., 0:3]
+
+        self.root_states = self.root_states[:self.num_envs, ...]
+        self.base_quat = self.root_states[:, 3:7]
+
         self.contact_forces = gymtorch.wrap_tensor(net_contact_forces).view(self.num_envs, -1,
                                                                             3)  # shape: num_envs, num_bodies, xyz axis
 
         # initialize some data used later on
         self.common_step_counter = 0
         self.extras = {}
-        self.noise_scale_vec = self._get_noise_scale_vec(self.cfg)
+        # self.noise_scale_vec = self._get_noise_scale_vec(self.cfg)
         self.gravity_vec = to_torch(get_axis_params(-1., self.up_axis_idx), device=self.device).repeat(
             (self.num_envs, 1))
         self.forward_vec = to_torch([1., 0., 0.], device=self.device).repeat((self.num_envs, 1))
         self.torques = torch.zeros(self.num_envs, self.num_actions, dtype=torch.float, device=self.device,
                                    requires_grad=False)
-        self.p_gains = torch.zeros(self.num_envs, self.num_actions, dtype=torch.float, device=self.device, requires_grad=False)
-        self.d_gains = torch.zeros(self.num_envs, self.num_actions, dtype=torch.float, device=self.device, requires_grad=False)
+        self.p_gains = torch.zeros(self.num_actions, dtype=torch.float, device=self.device, requires_grad=False)
+        self.d_gains = torch.zeros(self.num_actions, dtype=torch.float, device=self.device, requires_grad=False)
         self.actions = torch.zeros(self.num_envs, self.num_actions, dtype=torch.float, device=self.device,
                                    requires_grad=False)
         self.last_actions = torch.zeros(self.num_envs, self.num_actions, dtype=torch.float, device=self.device,
+                                        requires_grad=False)
+        self.external_forces = torch.zeros(self.num_envs, self.num_bodies, 3, dtype=torch.float, device=self.device,
+                                        requires_grad=False)
+        self.external_forces_pos = torch.zeros(self.num_envs, self.num_bodies, 3, dtype=torch.float, device=self.device,
                                         requires_grad=False)
         self.last_dof_vel = torch.zeros_like(self.dof_vel)
         self.last_root_vel = torch.zeros_like(self.root_states[:, 7:13])
@@ -569,35 +638,21 @@ class LeggedRobot(BaseTask):
 
         # joint positions offsets and PD gains
         self.default_dof_pos = torch.zeros(self.num_dof, dtype=torch.float, device=self.device, requires_grad=False)
-        for j in range(self.num_envs):
-            if self.cfg.domain_rand.randomize_pd:
-                p_gains = [0., 0., 0.]
-                d_gains = [0., 0., 0.]
-                for i in range(3):
-                    p_range = self.cfg.domain_rand.stiffness[str(i)]
-                    d_range = self.cfg.domain_rand.damping[str(i)]
-                    p_gains[i] = p_range[0] + (p_range[1] - p_range[0]) * np.random.uniform()
-                    d_gains[i] = d_range[0] + (d_range[1] - d_range[0]) * np.random.uniform()
-
-            for i in range(self.num_dofs):
-                name = self.dof_names[i]
-                angle = self.cfg.init_state.default_joint_angles[name]
-                self.default_dof_pos[i] = angle
-                found = False
-                for dof_name in self.cfg.control.stiffness.keys():
-                    if dof_name in name:
-                        if not self.cfg.domain_rand.randomize_pd:
-                            self.p_gains[j][i] = self.cfg.control.stiffness[dof_name]
-                            self.d_gains[j][i] = self.cfg.control.damping[dof_name]
-                        else:
-                            self.p_gains[j][i] = p_gains[int(dof_name[-1])]
-                            self.d_gains[j][i] = d_gains[int(dof_name[-1])]
-                        found = True
-                if not found:
-                    self.p_gains[j][i] = 0.
-                    self.d_gains[j][i] = 0.
-                    if self.cfg.control.control_type in ["P", "V"]:
-                        print(f"PD gain of joint {name} were not defined, setting them to zero")
+        for i in range(self.num_dofs):
+            name = self.dof_names[i]
+            angle = self.cfg.init_state.default_joint_angles[name]
+            self.default_dof_pos[i] = angle
+            found = False
+            for dof_name in self.cfg.control.stiffness.keys():
+                if dof_name in name:
+                    self.p_gains[i] = self.cfg.control.stiffness[dof_name]
+                    self.d_gains[i] = self.cfg.control.damping[dof_name]
+                    found = True
+            if not found:
+                self.p_gains[i] = 0.
+                self.d_gains[i] = 0.
+                if self.cfg.control.control_type in ["P", "V"]:
+                    print(f"PD gain of joint {name} were not defined, setting them to zero")
         self.default_dof_pos = self.default_dof_pos.unsqueeze(0)
 
     def _prepare_reward_function(self):
@@ -703,8 +758,14 @@ class LeggedRobot(BaseTask):
         asset_options.disable_gravity = self.cfg.asset.disable_gravity
 
         robot_asset = self.gym.load_asset(self.sim, asset_root, asset_file, asset_options)
+        plate_root = '/home/tianchu/Documents/code_qy/puppy-gym/meshes/wavego_v1'
+        plate_file = 'plate.urdf'
+        plate_asset = self.gym.load_asset(self.sim, plate_root, plate_file, asset_options)
         self.num_dof = self.gym.get_asset_dof_count(robot_asset)
-        self.num_bodies = self.gym.get_asset_rigid_body_count(robot_asset)
+        if self.cfg.customize.add_plate:
+            self.num_bodies = self.gym.get_asset_rigid_body_count(robot_asset) + self.gym.get_asset_rigid_body_count(plate_asset)
+        else:
+            self.num_bodies = self.gym.get_asset_rigid_body_count(robot_asset)
         dof_props_asset = self.gym.get_asset_dof_properties(robot_asset)
         rigid_shape_props_asset = self.gym.get_asset_rigid_shape_properties(robot_asset)
 
@@ -712,7 +773,7 @@ class LeggedRobot(BaseTask):
         body_names = self.gym.get_asset_rigid_body_names(robot_asset)
         self.dof_names = self.gym.get_asset_dof_names(robot_asset)
         self.body_names = body_names
-        self.num_bodies = len(body_names)
+        # self.num_bodies = len(body_names)
         self.num_dofs = len(self.dof_names)
         feet_names = [s for s in body_names if self.cfg.asset.foot_name in s]
         penalized_contact_names = []
@@ -751,6 +812,20 @@ class LeggedRobot(BaseTask):
             self.envs.append(env_handle)
             self.actor_handles.append(actor_handle)
 
+        if self.cfg.customize.add_plate:
+            # add env handle
+            start_pose = gymapi.Transform()
+            for i in range(self.num_envs):
+                pos = self.env_origins[i].clone()
+                # pos[:2] += torch_rand_float(-1., 1., (2, 1), device=self.device).squeeze(1)
+                start_pose.p = gymapi.Vec3(*pos)
+
+                # get env handle
+                env_handle = self.gym.get_env(self.sim, i)
+                # add plate as an actor
+                self.gym.create_actor(env_handle, plate_asset, start_pose, 'plate', i,
+                                      self.cfg.asset.self_collisions, 0)
+
         self.feet_indices = torch.zeros(len(feet_names), dtype=torch.long, device=self.device, requires_grad=False)
         for i in range(len(feet_names)):
             self.feet_indices[i] = self.gym.find_actor_rigid_body_handle(self.envs[0], self.actor_handles[0],
@@ -769,6 +844,34 @@ class LeggedRobot(BaseTask):
             self.termination_contact_indices[i] = self.gym.find_actor_rigid_body_handle(self.envs[0],
                                                                                         self.actor_handles[0],
                                                                                         termination_contact_names[i])
+
+    def get_modified_dof_props(self, props, env_id):
+        for dof in range(self.num_dof):
+            props['driveMode'][dof] = gymapi.DOF_MODE_POS
+            name = self.dof_names[dof]
+            for dof_name in self.cfg.control.stiffness.keys():
+                if dof_name in name:
+                    if self.pd_all_envs is not None:
+                        if '_j0' in dof_name:
+                            props['stiffness'][dof] = self.pd_all_envs[env_id][0]
+                            props['damping'][dof] = self.pd_all_envs[env_id][3]
+                        elif '_j1' in dof_name:
+                            props['stiffness'][dof] = self.pd_all_envs[env_id][1]
+                            props['damping'][dof] = self.pd_all_envs[env_id][4]
+                        elif '_j2' in dof_name:
+                            props['stiffness'][dof] = self.pd_all_envs[env_id][2]
+                            props['damping'][dof] = self.pd_all_envs[env_id][5]
+                    else:
+                        props['stiffness'][dof] = self.cfg.control.stiffness[dof_name]
+                        props['damping'][dof] = self.cfg.control.damping[dof_name]
+                        # self.p_gains[j] = self.cfg.control.stiffness[dof_name]
+                        # self.d_gains[j] = self.cfg.control.damping[dof_name]
+                    if 'j2' in dof_name:  # add more effort to j2
+                        props['effort'][dof] = 0.23
+                    else:
+                        props['effort'][dof] = 0.23
+            props['friction'][dof] = 0.0
+        return props
 
     def _get_env_origins(self):
         """ Sets environment origins. On rough terrain the origins are defined by the terrain platforms.
@@ -952,6 +1055,12 @@ class LeggedRobot(BaseTask):
 
     def _reward_tracking_lin_vel(self):
         # Tracking of linear velocity commands (xy axes)
+        # lin_vel_error = torch.sum(torch.square(self.commands[:, :2] - self.base_lin_vel[:, :2]), dim=1)
+        # return torch.exp(-lin_vel_error / self.cfg.rewards.tracking_sigma)
+        # return -lin_vel_error
+        # lin_vel = torch.sum(self.base_lin_vel[:, :2], dim=1)
+        # return lin_vel
+
         lin_vel_error = torch.sum(torch.square(self.commands[:, :2] - self.base_lin_vel[:, :2]), dim=1)
         return torch.exp(-lin_vel_error / self.cfg.rewards.tracking_sigma)
 
