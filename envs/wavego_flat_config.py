@@ -16,7 +16,7 @@ var_action_scale = 0.25
 var_decimation = 16
 var_dt = 0.002
 var_relative_action = False
-var_control_mode = 'pos'
+var_control_mode = 'torque'
 if var_relative_action:
     var_relative_action = 'pos'  # in relative action case, can only use pos control
     var_action_scale = 0.03
