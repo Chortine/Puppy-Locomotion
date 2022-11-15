@@ -87,7 +87,7 @@ observation_states_size = OrderedDict({  # the order matters
     # 'dof_pos': 12,
     # 'dof_vel': 12,
     'dof_action': 12 * obs_mem_len,
-    'targets': 12
+    # 'targets': 12
 })
 
 
@@ -126,7 +126,7 @@ class WavegoFlatCfg(LeggedRobotCfg):
         gravity = [0., 0., -9.81]  # [m/s^2]
 
     class terrain(LeggedRobotCfg.terrain):
-        mesh_type = 'trimesh'
+        mesh_type = 'plane'
         measure_heights = False
 
     class commands:
