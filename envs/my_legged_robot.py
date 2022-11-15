@@ -115,11 +115,12 @@ class LeggedRobot(BaseTask):
         for _ in range(self.cfg.control.decimation):
             if self.cfg.customize.add_toe_force:
                 self.apply_forces_at_toe()
-            self.torques = self._compute_torques(self.actions).view(self.torques.shape)
 
             if self.cfg.control.control_mode == 'pos':
+                self.torques = self._compute_torques_from_targets(self.actions).view(self.torques.shape)
                 self.gym.set_dof_position_target_tensor(self.sim, gymtorch.unwrap_tensor(self.targets))
             else:
+                self.torques = self._compute_torques(self.actions).view(self.torques.shape)
                 self.gym.set_dof_actuation_force_tensor(self.sim, gymtorch.unwrap_tensor(self.torques))
 
             self.gym.simulate(self.sim)
@@ -505,6 +506,30 @@ class LeggedRobot(BaseTask):
                         self.dof_vel - self.last_dof_vel) / self.sim_params.dt
         elif control_type == "T":
             torques = actions_scaled
+        else:
+            raise NameError(f"Unknown controller type: {control_type}")
+        rigid_contact_info = self.contact_forces
+        # self.gym.ENV_SPACE
+        return torch.clip(torques, -self.torque_limits, self.torque_limits)
+
+    def _compute_torques_from_targets(self, targets):
+        """ Compute torques from actions.
+            Actions can be interpreted as position or velocity targets given to a PD controller, or directly as scaled torques.
+            [NOTE]: torques must have the same dimension as the number of DOFs, even if some DOFs are not actuated.
+
+        Args:
+            actions (torch.Tensor): Actions
+
+        Returns:
+            [torch.Tensor]: Torques sent to the simulation
+        """
+        # pd controller
+        # actions_scaled[0, 4] = -0.35
+        # actions_scaled[0, 5] = 0.8
+        control_type = self.cfg.control.control_type
+        if control_type == "P":
+            torques = self.p_gains * (
+                        targets - self.dof_pos) - self.d_gains * self.dof_vel
         else:
             raise NameError(f"Unknown controller type: {control_type}")
         rigid_contact_info = self.contact_forces

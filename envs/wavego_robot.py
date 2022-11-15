@@ -139,6 +139,8 @@ class WavegoRobot(LeggedRobot):
                     obs_list.append(mem_obs["actions"])
                 else:
                     obs_list.append(self.actions)
+            elif state == 'targets':
+                obs_list.append(self.targets)
             elif state == 'sequence_dof_pos':
                 obs_list.extend(list(self.sequence_dof_pos))
             elif state == 'sequence_dof_action':

@@ -87,6 +87,7 @@ observation_states_size = OrderedDict({  # the order matters
     # 'dof_pos': 12,
     # 'dof_vel': 12,
     'dof_action': 12 * obs_mem_len,
+    'targets': 12
 })
 
 
