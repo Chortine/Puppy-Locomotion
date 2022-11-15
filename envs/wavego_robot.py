@@ -24,7 +24,7 @@ class WavegoRobot(LeggedRobot):
             self.debugger = TransitionDebugger(mode=self.cfg.customize.debugger_mode,
                                                sequence_len=self.cfg.customize.debugger_sequence_len,
                                                transition_path=os.path.join(current_folder, 'data'))
-        self.num_envs = self.cfg.customize.num_envs
+        self.num_envs = self.cfg.env.num_envs
         self.obs_mem_len = self.cfg.customize.obs_mem_len  # 4
         self.obs_mem_skip = self.cfg.customize.obs_mem_skip  # 3
         mem_max_len = self.obs_mem_skip * self.obs_mem_len

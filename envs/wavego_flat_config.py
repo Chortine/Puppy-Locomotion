@@ -15,7 +15,12 @@ var_fix_base_link = False
 var_action_scale = 0.25
 var_decimation = 25
 var_dt = 0.002
+var_relative_action = True
 var_control_mode = 'pos'
+if var_relative_action:
+    var_relative_action = 'pos'  # in relative action case, can only use pos control
+    var_action_scale = 0.03
+
 
 """
 hang_test
@@ -100,7 +105,7 @@ class WavegoFlatCfg(LeggedRobotCfg):
         obs_mem_skip = 3  # 3*0.05 = 0.15
         # the on the plate task
         add_plate = False
-        num_envs = 12000
+        relative_action = var_relative_action
 
     class init_state(LeggedRobotCfg.init_state):
         pos = var_init_pos  # x,y,z [m]
@@ -197,6 +202,17 @@ class WavegoFlatCfg(LeggedRobotCfg):
             action_rate = -0.2  # -0.5
             stand_still = -0.1
             energy = -0.0
+
+    class normalization:
+        class obs_scales:
+            lin_vel = 2.0
+            ang_vel = 0.25
+            dof_pos = 1.0
+            dof_vel = 0.05
+            height_measurements = 5.0
+
+        clip_observations = 100.
+        clip_actions = 10 if var_relative_action else 100.
 
     class domain_rand(LeggedRobotCfg.domain_rand):
         randomize_friction = True

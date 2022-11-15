@@ -101,16 +101,22 @@ class LeggedRobot(BaseTask):
         self.render()
         if self.cfg.customize.add_toe_force:
             self.refresh_forces_at_toe()
+
+        if self.cfg.customize.relative_action:
+            scaled_actions = self.cfg.control.action_scale * self.actions
+            self.targets = scaled_actions + self.last_targets
+
+        else:
+            self.targets = self.cfg.control.action_scale * self.actions + self.default_dof_pos
+        # clip the targets
+        self.targets = torch.clip(self.targets, self.dof_pos_limits[:, 0], self.dof_pos_limits[:, 1])
+        self.last_targets = torch.clone(self.targets)
+
         for _ in range(self.cfg.control.decimation):
             if self.cfg.customize.add_toe_force:
                 self.apply_forces_at_toe()
             self.torques = self._compute_torques(self.actions).view(self.torques.shape)
-            # self.gym.set_dof_actuation_force_tensor(self.sim, gymtorch.unwrap_tensor(self.torques))
-            # use set_dof_position_target_tensor(), position control
-            self.targets = self.cfg.control.action_scale * self.actions + self.default_dof_pos
-            # clip the targets
-            self.targets = torch.clip(self.targets, self.dof_pos_limits[:, 0], self.dof_pos_limits[:, 1])
-            # self.targets *= 0.0
+
             if self.cfg.control.control_mode == 'pos':
                 self.gym.set_dof_position_target_tensor(self.sim, gymtorch.unwrap_tensor(self.targets))
             else:
@@ -201,6 +207,8 @@ class LeggedRobot(BaseTask):
         self.feet_air_time[env_ids] = 0.
         self.episode_length_buf[env_ids] = 0
         self.reset_buf[env_ids] = 1
+        self.last_targets[env_ids] = 0.
+
         # fill extras
         self.extras["episode"] = {}
         for key in self.episode_sums.keys():
@@ -681,21 +689,12 @@ class LeggedRobot(BaseTask):
 
         # joint positions offsets and PD gains
         self.default_dof_pos = torch.zeros(self.num_dof, dtype=torch.float, device=self.device, requires_grad=False)
-        # for i in range(self.num_dofs):
-        #     name = self.dof_names[i]
-        #     angle = self.cfg.init_state.default_joint_angles[name]
-        #     self.default_dof_pos[i] = angle
-        #     found = False
-        #     for dof_name in self.cfg.control.stiffness.keys():
-        #         if dof_name in name:
-        #             self.p_gains[i] = self.cfg.control.stiffness[dof_name]
-        #             self.d_gains[i] = self.cfg.control.damping[dof_name]
-        #             found = True
-        #     if not found:
-        #         self.p_gains[i] = 0.
-        #         self.d_gains[i] = 0.
-        #         if self.cfg.control.control_type in ["P", "V"]:
-        #             print(f"PD gain of joint {name} were not defined, setting them to zero")
+        for i in range(self.num_dofs):
+            name = self.dof_names[i]
+            angle = self.cfg.init_state.default_joint_angles[name]
+            self.default_dof_pos[i] = angle
+        self.default_dof_pos = self.default_dof_pos.unsqueeze(0)
+        self.last_targets = self.default_dof_pos.repeat(self.num_envs, 1)
         # for j in range(self.num_envs):
         #     if self.cfg.domain_rand.randomize_pd:
         #         p_gains = [0., 0., 0.]
@@ -726,7 +725,6 @@ class LeggedRobot(BaseTask):
             #         if self.cfg.control.control_type in ["P", "V"]:
             #             print(f"PD gain of joint {name} were not defined, setting them to zero")
 
-        self.default_dof_pos = self.default_dof_pos.unsqueeze(0)
         self._init_pd_gains()
 
     def _init_pd_gains(self):
