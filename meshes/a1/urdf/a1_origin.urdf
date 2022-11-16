@@ -86,15 +86,15 @@
       </geometry>
     </collision> -->
   </link>
-  <joint name="fr_j0" type="revolute">
+  <joint name="FR_hip_joint" type="revolute">
     <origin rpy="0 0 0" xyz="0.183 -0.047 0"/>
     <parent link="trunk"/>
-    <child link="fr_l0"/>
+    <child link="FR_hip"/>
     <axis xyz="1 0 0"/>
     <dynamics damping="0" friction="0"/>
     <limit effort="20" lower="-0.802851455917" upper="0.802851455917" velocity="52.4"/>
   </joint>
-  <link name="fr_l0">
+  <link name="FR_hip">
     <visual>
       <origin rpy="3.14159265359 0 0" xyz="0 0 0"/>
       <geometry>
@@ -114,15 +114,29 @@
       <inertia ixx="0.000469246" ixy="9.409e-06" ixz="-3.42e-07" iyy="0.00080749" iyz="4.66e-07" izz="0.000552929"/>
     </inertial>
   </link>
-  <joint name="fr_j1" type="revolute">
+  <joint name="FR_hip_fixed" type="fixed">
+    <origin rpy="0 0 0" xyz="0 -0.081 0"/>
+    <parent link="FR_hip"/>
+    <child link="FR_thigh_shoulder"/>
+  </joint>
+  <!-- this link is only for collision -->
+  <link name="FR_thigh_shoulder">
+    <!-- <collision>
+      <origin rpy="1.57079632679 0 0" xyz="0 0 0"/>
+      <geometry>
+        <cylinder length="0.032" radius="0.041"/>
+      </geometry>
+    </collision> -->
+  </link>
+  <joint name="FR_thigh_joint" type="revolute">
     <origin rpy="0 0 0" xyz="0 -0.08505 0"/>
-    <parent link="fr_l0"/>
-    <child link="fr_l1"/>
+    <parent link="FR_hip"/>
+    <child link="FR_thigh"/>
     <axis xyz="0 1 0"/>
     <dynamics damping="0" friction="0"/>
     <limit effort="55" lower="-1.0471975512" upper="4.18879020479" velocity="28.6"/>
   </joint>
-  <link name="fr_l1">
+  <link name="FR_thigh">
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
@@ -142,15 +156,15 @@
       <inertia ixx="0.005529065" ixy="-4.825e-06" ixz="0.000343869" iyy="0.005139339" iyz="-2.2448e-05" izz="0.001367788"/>
     </inertial>
   </link>
-  <joint name="fr_j2" type="revolute">
+  <joint name="FR_calf_joint" type="revolute">
     <origin rpy="0 0 0" xyz="0 0 -0.2"/>
-    <parent link="fr_l1"/>
-    <child link="fr_l2"/>
+    <parent link="FR_thigh"/>
+    <child link="FR_calf"/>
     <axis xyz="0 1 0"/>
     <dynamics damping="0" friction="0"/>
     <limit effort="55" lower="-2.69653369433" upper="-0.916297857297" velocity="28.6"/>
   </joint>
-  <link name="fr_l2">
+  <link name="FR_calf">
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
@@ -170,12 +184,12 @@
       <inertia ixx="0.002997972" ixy="0.0" ixz="-0.000141163" iyy="0.003014022" iyz="0.0" izz="3.2426e-05"/>
     </inertial>
   </link>
-  <joint name="fr_j3" type="fixed" dont_collapse="true">
+  <joint name="FR_foot_fixed" type="fixed" dont_collapse="true">
     <origin rpy="0 0 0" xyz="0 0 -0.2"/>
-    <parent link="fr_l2"/>
-    <child link="fr_l3"/>
+    <parent link="FR_calf"/>
+    <child link="FR_foot"/>
   </joint>
-  <link name="fr_l3">
+  <link name="FR_foot">
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
@@ -194,15 +208,15 @@
       <inertia ixx="9.6e-06" ixy="0.0" ixz="0.0" iyy="9.6e-06" iyz="0.0" izz="9.6e-06"/>
     </inertial>
   </link>
-  <joint name="fl_j0" type="revolute">
+  <joint name="FL_hip_joint" type="revolute">
     <origin rpy="0 0 0" xyz="0.183 0.047 0"/>
     <parent link="trunk"/>
-    <child link="fl_l0"/>
+    <child link="FL_hip"/>
     <axis xyz="1 0 0"/>
     <dynamics damping="0" friction="0"/>
     <limit effort="20" lower="-0.802851455917" upper="0.802851455917" velocity="52.4"/>
   </joint>
-  <link name="fl_l0">
+  <link name="FL_hip">
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
@@ -222,15 +236,29 @@
       <inertia ixx="0.000469246" ixy="-9.409e-06" ixz="-3.42e-07" iyy="0.00080749" iyz="-4.66e-07" izz="0.000552929"/>
     </inertial>
   </link>
-  <joint name="fl_j1" type="revolute">
+  <joint name="FL_hip_fixed" type="fixed">
+    <origin rpy="0 0 0" xyz="0 0.081 0"/>
+    <parent link="FL_hip"/>
+    <child link="FL_thigh_shoulder"/>
+  </joint>
+  <!-- this link is only for collision -->
+  <link name="FL_thigh_shoulder">
+    <!-- <collision>
+      <origin rpy="1.57079632679 0 0" xyz="0 0 0"/>
+      <geometry>
+        <cylinder length="0.032" radius="0.041"/>
+      </geometry>
+    </collision> -->
+  </link>
+  <joint name="FL_thigh_joint" type="revolute">
     <origin rpy="0 0 0" xyz="0 0.08505 0"/>
-    <parent link="fl_l0"/>
-    <child link="fl_l1"/>
+    <parent link="FL_hip"/>
+    <child link="FL_thigh"/>
     <axis xyz="0 1 0"/>
     <dynamics damping="0" friction="0"/>
     <limit effort="55" lower="-1.0471975512" upper="4.18879020479" velocity="28.6"/>
   </joint>
-  <link name="fl_l1">
+  <link name="FL_thigh">
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
@@ -250,15 +278,15 @@
       <inertia ixx="0.005529065" ixy="4.825e-06" ixz="0.000343869" iyy="0.005139339" iyz="2.2448e-05" izz="0.001367788"/>
     </inertial>
   </link>
-  <joint name="fl_j2" type="revolute">
+  <joint name="FL_calf_joint" type="revolute">
     <origin rpy="0 0 0" xyz="0 0 -0.2"/>
-    <parent link="fl_l1"/>
-    <child link="fl_l2"/>
+    <parent link="FL_thigh"/>
+    <child link="FL_calf"/>
     <axis xyz="0 1 0"/>
     <dynamics damping="0" friction="0"/>
     <limit effort="55" lower="-2.69653369433" upper="-0.916297857297" velocity="28.6"/>
   </joint>
-  <link name="fl_l2">
+  <link name="FL_calf">
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
@@ -278,12 +306,12 @@
       <inertia ixx="0.002997972" ixy="0.0" ixz="-0.000141163" iyy="0.003014022" iyz="0.0" izz="3.2426e-05"/>
     </inertial>
   </link>
-  <joint name="fl_j3" type="fixed" dont_collapse="true">
+  <joint name="FL_foot_fixed" type="fixed" dont_collapse="true">
     <origin rpy="0 0 0" xyz="0 0 -0.2"/>
-    <parent link="fl_l2"/>
-    <child link="fl_l3"/>
+    <parent link="FL_calf"/>
+    <child link="FL_foot"/>
   </joint>
-  <link name="fl_l3">
+  <link name="FL_foot">
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
@@ -302,15 +330,15 @@
       <inertia ixx="9.6e-06" ixy="0.0" ixz="0.0" iyy="9.6e-06" iyz="0.0" izz="9.6e-06"/>
     </inertial>
   </link>
-  <joint name="rr_j0" type="revolute">
+  <joint name="RR_hip_joint" type="revolute">
     <origin rpy="0 0 0" xyz="-0.183 -0.047 0"/>
     <parent link="trunk"/>
-    <child link="rr_l0"/>
+    <child link="RR_hip"/>
     <axis xyz="1 0 0"/>
     <dynamics damping="0" friction="0"/>
     <limit effort="20" lower="-0.802851455917" upper="0.802851455917" velocity="52.4"/>
   </joint>
-  <link name="rr_l0">
+  <link name="RR_hip">
     <visual>
       <origin rpy="3.14159265359 3.14159265359 0" xyz="0 0 0"/>
       <geometry>
@@ -330,15 +358,29 @@
       <inertia ixx="0.000469246" ixy="-9.409e-06" ixz="3.42e-07" iyy="0.00080749" iyz="4.66e-07" izz="0.000552929"/>
     </inertial>
   </link>
-  <joint name="rr_j1" type="revolute">
+  <joint name="RR_hip_fixed" type="fixed">
+    <origin rpy="0 0 0" xyz="0 -0.081 0"/>
+    <parent link="RR_hip"/>
+    <child link="RR_thigh_shoulder"/>
+  </joint>
+  <!-- this link is only for collision -->
+  <link name="RR_thigh_shoulder">
+    <!-- <collision>
+      <origin rpy="1.57079632679 0 0" xyz="0 0 0"/>
+      <geometry>
+        <cylinder length="0.032" radius="0.041"/>
+      </geometry>
+    </collision> -->
+  </link>
+  <joint name="RR_thigh_joint" type="revolute">
     <origin rpy="0 0 0" xyz="0 -0.08505 0"/>
-    <parent link="rr_l0"/>
-    <child link="rr_l1"/>
+    <parent link="RR_hip"/>
+    <child link="RR_thigh"/>
     <axis xyz="0 1 0"/>
     <dynamics damping="0" friction="0"/>
     <limit effort="55" lower="-1.0471975512" upper="4.18879020479" velocity="28.6"/>
   </joint>
-  <link name="rr_l1">
+  <link name="RR_thigh">
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
@@ -358,15 +400,15 @@
       <inertia ixx="0.005529065" ixy="-4.825e-06" ixz="0.000343869" iyy="0.005139339" iyz="-2.2448e-05" izz="0.001367788"/>
     </inertial>
   </link>
-  <joint name="rr_j2" type="revolute">
+  <joint name="RR_calf_joint" type="revolute">
     <origin rpy="0 0 0" xyz="0 0 -0.2"/>
-    <parent link="rr_l1"/>
-    <child link="rr_l2"/>
+    <parent link="RR_thigh"/>
+    <child link="RR_calf"/>
     <axis xyz="0 1 0"/>
     <dynamics damping="0" friction="0"/>
     <limit effort="55" lower="-2.69653369433" upper="-0.916297857297" velocity="28.6"/>
   </joint>
-  <link name="rr_l2">
+  <link name="RR_calf">
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
@@ -386,12 +428,12 @@
       <inertia ixx="0.002997972" ixy="0.0" ixz="-0.000141163" iyy="0.003014022" iyz="0.0" izz="3.2426e-05"/>
     </inertial>
   </link>
-  <joint name="rr_j3" type="fixed" dont_collapse="true">
+  <joint name="RR_foot_fixed" type="fixed" dont_collapse="true">
     <origin rpy="0 0 0" xyz="0 0 -0.2"/>
-    <parent link="rr_l2"/>
-    <child link="rr_l3"/>
+    <parent link="RR_calf"/>
+    <child link="RR_foot"/>
   </joint>
-  <link name="rr_l3">
+  <link name="RR_foot">
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
@@ -410,15 +452,15 @@
       <inertia ixx="9.6e-06" ixy="0.0" ixz="0.0" iyy="9.6e-06" iyz="0.0" izz="9.6e-06"/>
     </inertial>
   </link>
-  <joint name="rl_j0" type="revolute">
+  <joint name="RL_hip_joint" type="revolute">
     <origin rpy="0 0 0" xyz="-0.183 0.047 0"/>
     <parent link="trunk"/>
-    <child link="rl_l0"/>
+    <child link="RL_hip"/>
     <axis xyz="1 0 0"/>
     <dynamics damping="0" friction="0"/>
     <limit effort="20" lower="-0.802851455917" upper="0.802851455917" velocity="52.4"/>
   </joint>
-  <link name="rl_l0">
+  <link name="RL_hip">
     <visual>
       <origin rpy="0 3.14159265359 0" xyz="0 0 0"/>
       <geometry>
@@ -438,15 +480,29 @@
       <inertia ixx="0.000469246" ixy="9.409e-06" ixz="3.42e-07" iyy="0.00080749" iyz="-4.66e-07" izz="0.000552929"/>
     </inertial>
   </link>
-  <joint name="rl_j1" type="revolute">
+  <joint name="RL_hip_fixed" type="fixed">
+    <origin rpy="0 0 0" xyz="0 0.081 0"/>
+    <parent link="RL_hip"/>
+    <child link="RL_thigh_shoulder"/>
+  </joint>
+  <!-- this link is only for collision -->
+  <link name="RL_thigh_shoulder">
+    <!-- <collision>
+      <origin rpy="1.57079632679 0 0" xyz="0 0 0"/>
+      <geometry>
+        <cylinder length="0.032" radius="0.041"/>
+      </geometry>
+    </collision> -->
+  </link>
+  <joint name="RL_thigh_joint" type="revolute">
     <origin rpy="0 0 0" xyz="0 0.08505 0"/>
-    <parent link="rl_l0"/>
-    <child link="rl_l1"/>
+    <parent link="RL_hip"/>
+    <child link="RL_thigh"/>
     <axis xyz="0 1 0"/>
     <dynamics damping="0" friction="0"/>
     <limit effort="55" lower="-1.0471975512" upper="4.18879020479" velocity="28.6"/>
   </joint>
-  <link name="rl_l1">
+  <link name="RL_thigh">
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
@@ -466,15 +522,15 @@
       <inertia ixx="0.005529065" ixy="4.825e-06" ixz="0.000343869" iyy="0.005139339" iyz="2.2448e-05" izz="0.001367788"/>
     </inertial>
   </link>
-  <joint name="rl_j2" type="revolute">
+  <joint name="RL_calf_joint" type="revolute">
     <origin rpy="0 0 0" xyz="0 0 -0.2"/>
-    <parent link="rl_l1"/>
-    <child link="rl_l2"/>
+    <parent link="RL_thigh"/>
+    <child link="RL_calf"/>
     <axis xyz="0 1 0"/>
     <dynamics damping="0" friction="0"/>
     <limit effort="55" lower="-2.69653369433" upper="-0.916297857297" velocity="28.6"/>
   </joint>
-  <link name="rl_l2">
+  <link name="RL_calf">
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
@@ -494,12 +550,12 @@
       <inertia ixx="0.002997972" ixy="0.0" ixz="-0.000141163" iyy="0.003014022" iyz="0.0" izz="3.2426e-05"/>
     </inertial>
   </link>
-  <joint name="rl_j3" type="fixed" dont_collapse="true">
+  <joint name="RL_foot_fixed" type="fixed" dont_collapse="true">
     <origin rpy="0 0 0" xyz="0 0 -0.2"/>
-    <parent link="rl_l2"/>
-    <child link="rl_l3"/>
+    <parent link="RL_calf"/>
+    <child link="RL_foot"/>
   </joint>
-  <link name="rl_l3">
+  <link name="RL_foot">
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
