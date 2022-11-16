@@ -69,6 +69,7 @@ class LeggedRobot(BaseTask):
         self.debug_viz = False
         self.init_done = False
         self._parse_cfg(self.cfg)
+        self.pd_all_envs = self.cfg.customize.pd_all_envs
         super().__init__(self.cfg, sim_params, physics_engine, sim_device, headless)
 
         if not self.headless:
@@ -104,8 +105,8 @@ class LeggedRobot(BaseTask):
             if self.cfg.customize.add_toe_force:
                 self.apply_forces_at_toe()
 
-            if self.cfg.control.control_mode == 'pos':
-                self.torques = self._compute_torques_from_targets(self.actions).view(self.torques.shape)
+            if self.cfg.customize.control_mode == 'pos':
+                self.torques = self._compute_torques_from_targets(self.targets).view(self.torques.shape)
                 self.gym.set_dof_position_target_tensor(self.sim, gymtorch.unwrap_tensor(self.targets))
             else:
                 self.torques = self._compute_torques(self.actions).view(self.torques.shape)
@@ -317,9 +318,10 @@ class LeggedRobot(BaseTask):
         Returns:
             [numpy.array]: Modified DOF properties
         """
+        props = self.get_modified_dof_props(props, env_id)
         if env_id == 0:
-            self.dof_pos_limits = torch.zeros(self.num_dof, 2, dtype=torch.float, device=self.device,
-                                              requires_grad=False)
+            self.dof_pos_limits = torch.zeros(self.num_dof, 2, dtype=torch.float, device=self.device, requires_grad=False)
+            self.soft_dof_pos_limits = torch.zeros(self.num_dof, 2, dtype=torch.float, device=self.device, requires_grad=False)
             self.dof_vel_limits = torch.zeros(self.num_dof, dtype=torch.float, device=self.device, requires_grad=False)
             self.torque_limits = torch.zeros(self.num_dof, dtype=torch.float, device=self.device, requires_grad=False)
             for i in range(len(props)):
@@ -327,14 +329,11 @@ class LeggedRobot(BaseTask):
                 self.dof_pos_limits[i, 1] = props["upper"][i].item()
                 self.dof_vel_limits[i] = props["velocity"][i].item()
                 self.torque_limits[i] = props["effort"][i].item()
-                # soft limits
+                # soft limits. only used to compute the reward
                 m = (self.dof_pos_limits[i, 0] + self.dof_pos_limits[i, 1]) / 2
                 r = self.dof_pos_limits[i, 1] - self.dof_pos_limits[i, 0]
-                self.dof_pos_limits[i, 0] = m - 0.5 * r * self.cfg.rewards.soft_dof_pos_limit
-                self.dof_pos_limits[i, 1] = m + 0.5 * r * self.cfg.rewards.soft_dof_pos_limit
-            for s in range(len(props)):
-                props['effort'][s] = 1
-                self.torque_limits[s] = 1
+                self.soft_dof_pos_limits[i, 0] = m - 0.5 * r * self.cfg.rewards.soft_dof_pos_limit
+                self.soft_dof_pos_limits[i, 1] = m + 0.5 * r * self.cfg.rewards.soft_dof_pos_limit
 
         if self.cfg.domain_rand.randomize_dof_friction:
             if env_id == 0:
@@ -923,31 +922,33 @@ class LeggedRobot(BaseTask):
                                                                                         termination_contact_names[i])
 
     def get_modified_dof_props(self, props, env_id):
-        for dof in range(self.num_dof):
-            props['driveMode'][dof] = gymapi.DOF_MODE_POS
-            name = self.dof_names[dof]
-            for i, dof_name in enumerate(list(self.cfg.control.stiffness.keys())):
-                if dof_name in name:
-                    if self.pd_all_envs is not None:
-                        if '_j0' in dof_name:
-                            props['stiffness'][dof] = self.pd_all_envs[env_id][0]
-                            props['damping'][dof] = self.pd_all_envs[env_id][3]
-                        elif '_j1' in dof_name:
-                            props['stiffness'][dof] = self.pd_all_envs[env_id][1]
-                            props['damping'][dof] = self.pd_all_envs[env_id][4]
-                        elif '_j2' in dof_name:
-                            props['stiffness'][dof] = self.pd_all_envs[env_id][2]
-                            props['damping'][dof] = self.pd_all_envs[env_id][5]
-                    else:
-                        props['stiffness'][dof] = self.cfg.control.stiffness[dof_name]
-                        props['damping'][dof] = self.cfg.control.damping[dof_name]
-                        # self.p_gains[j] = self.cfg.control.stiffness[dof_name]
-                        # self.d_gains[j] = self.cfg.control.damping[dof_name]
-                    if 'j2' in dof_name:  # add more effort to j2
-                        props['effort'][dof] = 0.23
-                    else:
-                        props['effort'][dof] = 0.23
-            props['friction'][dof] = 0.0
+        """
+        modified the gym dof props according to the env_cfg. Default it's retrived from urdf.
+        :param props:
+        :param env_id:
+        :return:
+        """
+        for dof_id, dof_name in enumerate(self.dof_names):
+            if self.cfg.customize.control_mode == 'pos':
+                props['driveMode'][dof_id] = gymapi.DOF_MODE_POS   # 1
+                if self.pd_all_envs is not None:
+                    if '_j0' in dof_name:
+                        props['stiffness'][dof_id] = self.pd_all_envs[env_id][0]
+                        props['damping'][dof_id] = self.pd_all_envs[env_id][3]
+                    elif '_j1' in dof_name:
+                        props['stiffness'][dof_id] = self.pd_all_envs[env_id][1]
+                        props['damping'][dof_id] = self.pd_all_envs[env_id][4]
+                    elif '_j2' in dof_name:
+                        props['stiffness'][dof_id] = self.pd_all_envs[env_id][2]
+                        props['damping'][dof_id] = self.pd_all_envs[env_id][5]
+                else:
+                    props['stiffness'][dof_id] = self.cfg.control.stiffness[dof_name]
+                    props['damping'][dof_id] = self.cfg.control.damping[dof_name]
+            elif self.cfg.customize.control_mode == 'torque':
+                props['driveMode'][dof_id] = gymapi.DOF_MODE_EFFORT  # 3
+                # IMPORTANT!!! In the dof_mode_effort mode the pd should be zero.
+                props['stiffness'][dof_id] = 0.0
+                props['damping'][dof_id] = 0.0
         return props
 
     def _get_env_origins(self):
@@ -1114,8 +1115,8 @@ class LeggedRobot(BaseTask):
 
     def _reward_dof_pos_limits(self):
         # Penalize dof positions too close to the limit
-        out_of_limits = -(self.dof_pos - self.dof_pos_limits[:, 0]).clip(max=0.)  # lower limit
-        out_of_limits += (self.dof_pos - self.dof_pos_limits[:, 1]).clip(min=0.)
+        out_of_limits = -(self.dof_pos - self.soft_dof_pos_limits[:, 0]).clip(max=0.)  # lower limit
+        out_of_limits += (self.dof_pos - self.soft_dof_pos_limits[:, 1]).clip(min=0.)
         return torch.sum(out_of_limits, dim=1)
 
     def _reward_dof_vel_limits(self):

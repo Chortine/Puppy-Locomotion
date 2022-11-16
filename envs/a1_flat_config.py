@@ -10,8 +10,8 @@ current_root = os.path.dirname(os.path.dirname(__file__))
 # j1 = 15  # from 45 to -90
 # j2 = -15  # from -45 to 30
 
-var_init_pos = [0.0, 0.0, 1.42]
-var_fix_base_link = True
+var_init_pos = [0.0, 0.0, 0.42]
+var_fix_base_link = False
 var_action_scale = 0.0
 var_decimation = 25
 var_dt = 0.002
@@ -107,6 +107,9 @@ class A1FlatCfg(LeggedRobotCfg):
         # the on the plate task
         add_plate = False
         relative_action = var_relative_action
+        runner_class = 'default'
+        control_mode = var_control_mode
+        soft_dof_limits = True
 
     class init_state(LeggedRobotCfg.init_state):
         pos = var_init_pos  # x,y,z [m]
@@ -187,7 +190,6 @@ class A1FlatCfg(LeggedRobotCfg):
         action_scale = var_action_scale
         # decimation: Number of control action updates @ sim DT per policy DT
         decimation = var_decimation
-        control_mode = var_control_mode
 
     class asset(LeggedRobotCfg.asset):
         file = os.path.join(current_root, 'meshes/a1/urdf/a1.urdf')
@@ -249,7 +251,7 @@ class A1FlatCfg(LeggedRobotCfg):
         randomize_dof_friction = False
         dof_friction_range = [0, 1]
 
-        randomize_pd = True
+        randomize_pd = False
         stiffness = {
             '0': [3.0, 3.0], '1': [1., 2.], '2': [1., 2.],
         }

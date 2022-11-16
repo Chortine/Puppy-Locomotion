@@ -107,6 +107,8 @@ class WavegoFlatCfg(LeggedRobotCfg):
         # the on the plate task
         add_plate = False
         relative_action = var_relative_action
+        control_mode = var_control_mode
+        soft_dof_limits = True
 
     class init_state(LeggedRobotCfg.init_state):
         pos = var_init_pos  # x,y,z [m]
@@ -164,7 +166,6 @@ class WavegoFlatCfg(LeggedRobotCfg):
         action_scale = var_action_scale
         # decimation: Number of control action updates @ sim DT per policy DT
         decimation = var_decimation
-        control_mode = var_control_mode
 
     class asset(LeggedRobotCfg.asset):
         file = os.path.join(current_root, 'meshes/wavego_v1/wavego_fix_j0.urdf')
