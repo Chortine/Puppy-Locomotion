@@ -70,6 +70,17 @@ class LeggedRobot(BaseTask):
         self.init_done = False
         self._parse_cfg(self.cfg)
         self.pd_all_envs = self.cfg.customize.pd_all_envs
+        # randomize pd for all envs
+        if self.cfg.domain_rand.randomize_pd:
+            self.pd_all_envs = torch.zeros(self.cfg.env.num_envs, 6, dtype=torch.float, device=sim_device, requires_grad=False)
+            for env in range(self.cfg.env.num_envs):
+                    for i in range(3):
+                        p_range = self.cfg.domain_rand.stiffness[str(i)]
+                        self.pd_all_envs[env][i] = p_range[0] + (p_range[1] - p_range[0]) * np.random.uniform()
+                    for i in range(3):
+                        d_range = self.cfg.domain_rand.damping[str(i)]
+                        self.pd_all_envs[env][i+3] = d_range[0] + (d_range[1] - d_range[0]) * np.random.uniform()
+
         super().__init__(self.cfg, sim_params, physics_engine, sim_device, headless)
 
         if not self.headless:
@@ -197,7 +208,7 @@ class LeggedRobot(BaseTask):
         self.feet_air_time[env_ids] = 0.
         self.episode_length_buf[env_ids] = 0
         self.reset_buf[env_ids] = 1
-        # self.last_targets[env_ids] = 0.
+        self.last_targets[env_ids] = 0.
 
         # fill extras
         self.extras["episode"] = {}
@@ -700,36 +711,31 @@ class LeggedRobot(BaseTask):
 
         # joint positions offsets and PD gains
         self.default_dof_pos = torch.zeros(self.num_dof, dtype=torch.float, device=self.device, requires_grad=False)
-        for j in range(self.num_envs):
-            if self.cfg.domain_rand.randomize_pd:
-                p_gains = [0., 0., 0.]
-                d_gains = [0., 0., 0.]
-                for i in range(3):
-                    p_range = self.cfg.domain_rand.stiffness[str(i)]
-                    d_range = self.cfg.domain_rand.damping[str(i)]
-                    p_gains[i] = p_range[0] + (p_range[1] - p_range[0]) * np.random.uniform()
-                    d_gains[i] = d_range[0] + (d_range[1] - d_range[0]) * np.random.uniform()
-
-            for i in range(self.num_dofs):
-                name = self.dof_names[i]
-                angle = self.cfg.init_state.default_joint_angles[name]
-                self.default_dof_pos[i] = angle
-                found = False
-                for dof_name in self.cfg.control.stiffness.keys():
-                    if dof_name in name:
-                        if not self.cfg.domain_rand.randomize_pd:
-                            self.p_gains[j][i] = self.cfg.control.stiffness[dof_name]
-                            self.d_gains[j][i] = self.cfg.control.damping[dof_name]
-                        else:
-                            self.p_gains[j][i] = p_gains[int(dof_name[-1])]
-                            self.d_gains[j][i] = d_gains[int(dof_name[-1])]
-                        found = True
-                if not found:
-                    self.p_gains[j][i] = 0.
-                    self.d_gains[j][i] = 0.
-                    if self.cfg.control.control_type in ["P", "V"]:
-                        print(f"PD gain of joint {name} were not defined, setting them to zero")
+        for i in range(self.num_dofs):
+            name = self.dof_names[i]
+            angle = self.cfg.init_state.default_joint_angles[name]
+            self.default_dof_pos[i] = angle
         self.default_dof_pos = self.default_dof_pos.unsqueeze(0)
+        self.last_targets = self.default_dof_pos.repeat(self.num_envs, 1)
+        self._init_pd_gains_buffer()
+
+    def _init_pd_gains_buffer(self):
+        for env_id in range(self.num_envs):
+            if self.pd_all_envs is not None:
+                for dof_id, dof_name in enumerate(self.dof_names):
+                    if '_j0' in dof_name:
+                        self.p_gains[env_id][dof_id] = self.pd_all_envs[env_id][0]
+                        self.d_gains[env_id][dof_id] = self.pd_all_envs[env_id][3]
+                    elif '_j1' in dof_name:
+                        self.p_gains[env_id][dof_id] = self.pd_all_envs[env_id][1]
+                        self.d_gains[env_id][dof_id] = self.pd_all_envs[env_id][4]
+                    elif '_j2' in dof_name:
+                        self.p_gains[env_id][dof_id] = self.pd_all_envs[env_id][2]
+                        self.d_gains[env_id][dof_id] = self.pd_all_envs[env_id][5]
+            else:
+                for dof_id, dof_name in enumerate(self.dof_names):
+                    self.p_gains[env_id][dof_id] = self.cfg.control.stiffness[dof_name]
+                    self.d_gains[env_id][dof_id] = self.cfg.control.damping[dof_name]
 
     def _prepare_reward_function(self):
         """ Prepares a list of reward functions, whcih will be called to compute the total reward.

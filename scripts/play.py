@@ -43,8 +43,8 @@ import torch
 
 
 def play(args):
-    args.task = "a1_flat"
-    # args.task = "wavego_flat"
+    # args.task = "a1_flat"
+    args.task = "wavego_flat"
     args.num_envs = 10
     # ckpt_path = '/home/jingjing/PycharmProjects/puppy-bot/logs/train_11_2/model_2000_good.pt'
     # ckpt_path = '/home/jingjing/PycharmProjects/puppy-bot/logs/good_train/largepd_good_train.pt'
@@ -65,7 +65,7 @@ def play(args):
     # load policy
     train_cfg.runner.resume = False
     ppo_runner, train_cfg = task_registry.make_alg_runner(env=env, name=args.task, args=args, train_cfg=train_cfg)
-    # ppo_runner.load(ckpt_path)
+    ppo_runner.load(ckpt_path)
 
     policy = ppo_runner.get_inference_policy(device=env.device)
     

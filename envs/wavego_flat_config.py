@@ -109,6 +109,7 @@ class WavegoFlatCfg(LeggedRobotCfg):
         relative_action = var_relative_action
         control_mode = var_control_mode
         soft_dof_limits = True
+        runner_class = 'my'
 
     class init_state(LeggedRobotCfg.init_state):
         pos = var_init_pos  # x,y,z [m]
