@@ -43,8 +43,8 @@ import torch
 
 
 def play(args):
-    # args.task = "a1_flat"
-    args.task = "wavego_flat"
+    args.task = "a1_flat"
+    # args.task = "wavego_flat"
     args.num_envs = 10
     # ckpt_path = '/home/jingjing/PycharmProjects/puppy-bot/logs/train_11_2/model_2000_good.pt'
     # ckpt_path = '/home/jingjing/PycharmProjects/puppy-bot/logs/good_train/largepd_good_train.pt'

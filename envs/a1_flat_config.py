@@ -5,14 +5,10 @@ import numpy as np
 import os, sys
 
 current_root = os.path.dirname(os.path.dirname(__file__))
-# j0_default_ang = np.radians()
-# j0 = 4  # from 90 to 0
-# j1 = 15  # from 45 to -90
-# j2 = -15  # from -45 to 30
 
 var_init_pos = [0.0, 0.0, 0.42]
 var_fix_base_link = False
-var_action_scale = 0.0
+var_action_scale = 0.25
 var_decimation = 25
 var_dt = 0.002
 var_relative_action = False
@@ -107,9 +103,8 @@ class A1FlatCfg(LeggedRobotCfg):
         # the on the plate task
         add_plate = False
         relative_action = var_relative_action
-        runner_class = 'default'
         control_mode = var_control_mode
-        soft_dof_limits = True
+        runner_class = 'my'
 
     class init_state(LeggedRobotCfg.init_state):
         pos = var_init_pos  # x,y,z [m]
@@ -156,7 +151,7 @@ class A1FlatCfg(LeggedRobotCfg):
         heading_command = True  # if true: compute ang vel command from heading error
 
         class ranges:
-            lin_vel_x = [0.1, 0.2]  # min max [m/s]
+            lin_vel_x = [-1.0, 1.0]  # min max [m/s]
             lin_vel_y = [-0.0, 0.0]  # min max [m/s]
             ang_vel_yaw = [-0, 0]  # min max [rad/s]
             heading = [0, 0]
@@ -196,37 +191,19 @@ class A1FlatCfg(LeggedRobotCfg):
         name = "a1"
         foot_name = "_l3"
         penalize_contacts_on = []
-        terminate_after_contacts_on = ["base"]
+        terminate_after_contacts_on = ["_l0", "_l1", "base", "trunk"]
         self_collisions = 1  # 1 to disable, 0 to enable...bitwise filter
+        flip_visual_attachments = True  # for the a1 robot, this should be True!!
         disable_gravity = False
         fix_base_link = var_fix_base_link
 
     class rewards(LeggedRobotCfg.rewards):
         soft_dof_pos_limit = 0.9
-        base_height_target = 0.1
-        tracking_sigma = 0.05  # tracking reward = exp(-error^2/sigma)
-        only_positive_rewards = True
+        base_height_target = 0.25
 
         class scales(LeggedRobotCfg.rewards.scales):
-            tracking_lin_vel = 4.0
-            tracking_ang_vel = 1.0
-
-            torques = -0.00001
-            dof_pos_limits = -1.0
-            feet_air_time = 0.1  # 1.0
-
-            termination = -0.0
-            lin_vel_z = -0.1
-            ang_vel_xy = -0.05
-            orientation = -0.
-            dof_vel = -0.
-            dof_acc = -2.5e-7
-            base_height = -0.
-            collision = -1.
-            feet_stumble = -0.0
-            action_rate = -0.2  # -0.5
-            stand_still = -0.1
-            energy = -0.0
+            torques = -0.0002
+            dof_pos_limits = -10.0
 
     class normalization:
         class obs_scales:

@@ -108,7 +108,6 @@ class WavegoFlatCfg(LeggedRobotCfg):
         add_plate = False
         relative_action = var_relative_action
         control_mode = var_control_mode
-        soft_dof_limits = True
         runner_class = 'my'
 
     class init_state(LeggedRobotCfg.init_state):
@@ -150,18 +149,25 @@ class WavegoFlatCfg(LeggedRobotCfg):
         control_type = 'P'
 
         stiffness = {
-            'fr_j0': 2.0, 'fr_j1': 0.4, 'fr_j2': 0.5,
-            'fl_j0': 2.0, 'fl_j1': 0.4, 'fl_j2': 0.5,
-            'rr_j0': 2.0, 'rr_j1': 0.4, 'rr_j2': 0.5,
-            'rl_j0': 2.0, 'rl_j1': 0.4, 'rl_j2': 0.5
+            'fr_j0': fore_j0_p, 'fr_j1': fore_j1_p, 'fr_j2': fore_j2_p,
+            'fl_j0': fore_j0_p, 'fl_j1': fore_j1_p, 'fl_j2': fore_j2_p,
+
+            'rr_j0': hind_j0_p, 'rr_j1': hind_j1_p, 'rr_j2': hind_j2_p,
+            'rl_j0': hind_j0_p, 'rl_j1': hind_j1_p, 'rl_j2': hind_j2_p
         }
 
+        for k, v in stiffness.items():
+            stiffness[k] += 0
+
         damping = {
-            'fr_j0': 0.01, 'fr_j1': 0.01, 'fr_j2': 0.01,
-            'fl_j0': 0.01, 'fl_j1': 0.01, 'fl_j2': 0.01,
-            'rr_j0': 0.01, 'rr_j1': 0.01, 'rr_j2': 0.01,
-            'rl_j0': 0.01, 'rl_j1': 0.01, 'rl_j2': 0.01
+            'fr_j0': fore_j0_d, 'fr_j1': fore_j1_d, 'fr_j2': fore_j2_d,
+            'fl_j0': fore_j0_d, 'fl_j1': fore_j1_d, 'fl_j2': fore_j2_d,
+
+            'rr_j0': hind_j0_d, 'rr_j1': hind_j1_d, 'rr_j2': hind_j2_d,
+            'rl_j0': hind_j0_d, 'rl_j1': hind_j1_d, 'rl_j2': hind_j2_d
         }
+        for k, v in damping.items():
+            damping[k] *= 1
 
         # action scale: target angle = actionScale * action + defaultAngle
         action_scale = var_action_scale
