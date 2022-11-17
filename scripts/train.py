@@ -43,8 +43,8 @@ import torch
 current_root = os.path.dirname(os.path.dirname(__file__))
 
 def train(args):
-    # args.task = "wavego_flat"
-    args.task = 'a1_flat_default'
+    args.task = "wavego_flat"
+    # args.task = 'a1_flat_default'
     # args.task = "a1"
     # args.task = "a1_flat"
     args.num_envs = 12000

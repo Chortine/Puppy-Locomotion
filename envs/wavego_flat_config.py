@@ -15,12 +15,11 @@ var_fix_base_link = False
 var_action_scale = 0.25
 var_decimation = 25
 var_dt = 0.002
-var_relative_action = False
+var_relative_action = True
 var_control_mode = 'torque'
 if var_relative_action:
-    var_relative_action = 'pos'  # in relative action case, can only use pos control
+    var_control_mode = 'pos'  # in relative action case, can only use pos control
     var_action_scale = 0.03
-
 
 """
 hang_test
@@ -102,13 +101,14 @@ class WavegoFlatCfg(LeggedRobotCfg):
         observation_states = list(observation_states_size.keys())
         observation_states_size = observation_states_size
         use_state_mem = True  # the adding memory way by wangjing
-        obs_mem_len = obs_mem_len   # 0.15*4 = 0.6
+        obs_mem_len = obs_mem_len  # 0.15*4 = 0.6
         obs_mem_skip = 3  # 3*0.05 = 0.15
         # the on the plate task
         add_plate = False
         relative_action = var_relative_action
         control_mode = var_control_mode
         runner_class = 'my'
+        use_env_factors = False
         env_factors = [
             'payload',
             'dof_stiffness',
