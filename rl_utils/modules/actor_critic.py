@@ -117,8 +117,9 @@ class ActorCriticNet(nn.Module):
         copy_observation_states = copy.deepcopy(self.observation_states)
         only_common_states = False
         while not only_common_states and len(copy_observation_states) > 0:
-            state_name = copy_observation_states.pop(0)
+            state_name = copy_observation_states[0]
             if state_name in ['env_factor', 'sequence_dof_pos', 'sequence_dof_action']:
+                copy_observation_states.pop(0)
                 embedding = self.state_encoder_dict[state_name](obs_tensor[..., start_idx: start_idx+self.observation_states_size[state_name]])
                 X.append(embedding)
                 start_idx += self.observation_states_size[state_name]

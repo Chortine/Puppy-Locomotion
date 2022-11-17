@@ -9,3 +9,5 @@ from rl_utils.task_registry import task_registry
 
 task_registry.register("wavego_flat", WavegoRobot, WavegoFlatCfg(), WavegoFlatCfgPPO())
 task_registry.register("a1_flat", WavegoRobot, A1FlatCfg(), A1FlatCfgPPO())
+
+task_registry.register("a1_flat_default", LeggedRobot, A1FlatCfg(), A1FlatCfgPPO())

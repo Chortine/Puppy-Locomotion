@@ -75,15 +75,16 @@ legs_name = ['rr', 'rl', 'fr', 'fl']
 obs_mem_len = 4
 
 observation_states_size = OrderedDict({  # the order matters
-    # 'sequence_dof_pos': 50 * 12,
-    # 'sequence_dof_action': 50 * 12,
-    'angular_v': 3 * obs_mem_len,
-    'row_pitch': 4 * obs_mem_len,
-    'top_commands': 3,
-    # 'dof_pos': 12,
-    # 'dof_vel': 12,
-    'dof_action': 12 * obs_mem_len,
-    # 'targets': 12
+    # # 'sequence_dof_pos': 50 * 12,
+    # # 'sequence_dof_action': 50 * 12,
+    # 'angular_v': 3 * obs_mem_len,
+    # 'row_pitch': 4 * obs_mem_len,
+    # 'top_commands': 3,
+    # # 'dof_pos': 12,
+    # # 'dof_vel': 12,
+    # 'dof_action': 12 * obs_mem_len,
+    # # 'targets': 12
+    'common_states': 48
 })
 
 
@@ -132,6 +133,7 @@ class A1FlatCfg(LeggedRobotCfg):
         }
 
     class env(LeggedRobotCfg.env):
+        # num_observations = 48
         num_observations = sum(list(observation_states_size.values()))
         episode_length_s = 50
 
@@ -151,7 +153,7 @@ class A1FlatCfg(LeggedRobotCfg):
         heading_command = True  # if true: compute ang vel command from heading error
 
         class ranges:
-            lin_vel_x = [-1.0, 1.0]  # min max [m/s]
+            lin_vel_x = [1.0, 1.0]  # min max [m/s]
             lin_vel_y = [-0.0, 0.0]  # min max [m/s]
             ang_vel_yaw = [-0, 0]  # min max [rad/s]
             heading = [0, 0]
