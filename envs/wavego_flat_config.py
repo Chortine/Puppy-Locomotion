@@ -109,6 +109,12 @@ class WavegoFlatCfg(LeggedRobotCfg):
         relative_action = var_relative_action
         control_mode = var_control_mode
         runner_class = 'my'
+        env_factors = [
+            'payload',
+            'dof_stiffness',
+            'dof_damping',
+            'terrain_friction'
+        ]
 
     class init_state(LeggedRobotCfg.init_state):
         pos = var_init_pos  # x,y,z [m]
@@ -130,6 +136,8 @@ class WavegoFlatCfg(LeggedRobotCfg):
     class terrain(LeggedRobotCfg.terrain):
         mesh_type = 'plane'
         measure_heights = False
+        static_friction = 1.0
+        dynamic_friction = 1.0
 
     class commands:
         curriculum = False

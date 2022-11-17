@@ -718,6 +718,21 @@ class LeggedRobot(BaseTask):
         self.default_dof_pos = self.default_dof_pos.unsqueeze(0)
         self.last_targets = self.default_dof_pos.repeat(self.num_envs, 1)
         self._init_pd_gains_buffer()
+        if 'env_factor' in self.cfg.customize.observation_states:
+            self._init_env_factors_buffer()
+
+    def _init_env_factors_buffer(self):
+        self.env_factors_dict = {}
+        for fac in self.cfg.customize.env_factors:
+            if fac == 'payload':
+                payload = torch.zeros(self.num_envs, dtype=torch.float, device=self.device, requires_grad=False)
+                self.env_factors_dict[fac] = payload
+            elif fac == 'dof_stiffness':
+                self.env_factors_dict[fac] = self.p_gains
+            elif fac == 'dof_damping':
+                self.env_factors_dict[fac] = self.d_gains
+            elif fac == 'terrain_friction':
+                self.env_factors_dict[fac] = torch.squeeze(self.friction_coeffs)
 
     def _init_pd_gains_buffer(self):
         for env_id in range(self.num_envs):

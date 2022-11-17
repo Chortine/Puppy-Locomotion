@@ -43,12 +43,12 @@ import torch
 
 
 def play(args):
-    args.task = "a1_flat"
-    # args.task = "wavego_flat"
+    # args.task = "a1_flat"
+    args.task = "wavego_flat"
     args.num_envs = 10
     # ckpt_path = '/home/jingjing/PycharmProjects/puppy-bot/logs/train_11_2/model_2000_good.pt'
     # ckpt_path = '/home/jingjing/PycharmProjects/puppy-bot/logs/good_train/largepd_good_train.pt'
-    ckpt_path = '/home/tianchu/Documents/code_qy/puppy-gym/logs/model_210.pt'
+    ckpt_path = '/home/tianchu/Documents/code_qy/puppy-gym/logs/model_4000.pt'
     env_cfg, train_cfg = task_registry.get_cfgs(name=args.task)
     # override some parameters for testing
     env_cfg.env.num_envs = min(env_cfg.env.num_envs, 50)
@@ -56,7 +56,7 @@ def play(args):
     env_cfg.terrain.num_cols = 5
     env_cfg.terrain.curriculum = False
     env_cfg.noise.add_noise = True
-    env_cfg.domain_rand.randomize_friction = False
+    env_cfg.domain_rand.randomize_friction = True
     env_cfg.domain_rand.push_robots = False
 
     # prepare environment
