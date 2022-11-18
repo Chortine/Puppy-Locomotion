@@ -206,8 +206,8 @@ class LeggedRobot(BaseTask):
             self.update_command_curriculum(env_ids)
 
         # resample the env factor
-        # if self.cfg.customize.use_env_factors:
-        #     self._refresh_env_factors_buffer(mode='reset', env_ids=env_ids)
+        if self.cfg.customize.use_env_factors:
+            self._refresh_env_factors_buffer(mode='reset', env_ids=env_ids)
 
         # it's important; otherwise set_actor_rigid_body_properties will effect the root state
         self.gym.simulate(self.sim)
