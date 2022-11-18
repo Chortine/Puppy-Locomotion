@@ -49,6 +49,7 @@ from legged_gym.utils.helpers import class_to_dict
 # from real_deployment.base_legged_robot_config import LeggedRobotCfg
 from envs.wavego_flat_config import WavegoFlatCfg
 
+
 # from envs.utils.terrain_generation import *
 
 
@@ -207,6 +208,10 @@ class LeggedRobot(BaseTask):
         # resample the env factor
         if self.cfg.customize.use_env_factors:
             self._refresh_env_factors_buffer(mode='reset', env_ids=env_ids)
+
+        # it's important; otherwise set_actor_rigid_body_properties will effect the root state
+        self.gym.simulate(self.sim)
+
         # reset robot states
         self._reset_dofs(env_ids)
         self._reset_root_states(env_ids)
@@ -495,9 +500,12 @@ class LeggedRobot(BaseTask):
                                                      self.command_ranges["lin_vel_y"][1], (len(env_ids), 1),
                                                      device=self.device).squeeze(1)
         if self.cfg.commands.heading_command:
-            self.commands[env_ids, 3] = torch_rand_float(self.command_ranges["heading"][0],
-                                                         self.command_ranges["heading"][1], (len(env_ids), 1),
-                                                         device=self.device).squeeze(1)
+            if self.cfg.customize.tilted_plane:
+                self.commands[env_ids, 3] = self.init_heading[env_ids]
+            else:
+                self.commands[env_ids, 3] = torch_rand_float(self.command_ranges["heading"][0],
+                                                             self.command_ranges["heading"][1], (len(env_ids), 1),
+                                                             device=self.device).squeeze(1)
         else:
             self.commands[env_ids, 2] = torch_rand_float(self.command_ranges["ang_vel_yaw"][0],
                                                          self.command_ranges["ang_vel_yaw"][1], (len(env_ids), 1),
@@ -593,9 +601,20 @@ class LeggedRobot(BaseTask):
         else:
             self.root_states[env_ids] = self.base_init_state
             self.root_states[env_ids, :3] += self.env_origins[env_ids]
-            # if self.cfg.customize.tilted_plane:
-            # z_drift = - self.env_origins[env_ids][..., 0] * np.tan(np.deg2rad(self.cfg.customize.plane_tilted_angle))
-            # self.root_states[env_ids, 2] += z_drift
+            if self.cfg.customize.tilted_plane:
+                z_drift = - self.env_origins[env_ids][..., 0] * np.tan(
+                    np.deg2rad(self.cfg.customize.plane_tilted_angle))
+                self.root_states[env_ids, 2] += z_drift
+                # reset_root_states_rot
+                rolls = torch.zeros(len(env_ids), dtype=torch.float, device=self.device, requires_grad=False)
+                pitchs = torch.zeros(len(env_ids), dtype=torch.float, device=self.device, requires_grad=False)
+                yaws = torch.squeeze(torch_rand_float(-np.pi, np.pi, (len(env_ids), 1), device=self.device))
+                quats = quat_from_euler_xyz(rolls, pitchs, yaws)
+                self.root_states[env_ids, 3:7] = quats
+                forward = quat_apply(quats, self.forward_vec[env_ids])
+                # change the init heading
+                self.init_heading[env_ids] = torch.atan2(forward[:, 1], forward[:, 0])
+
         # base velocities
         self.root_states[env_ids, 7:13] = torch_rand_float(-0.5, 0.5, (len(env_ids), 6),
                                                            device=self.device)  # [7:10]: lin vel, [10:13]: ang vel
@@ -725,6 +744,15 @@ class LeggedRobot(BaseTask):
                                    requires_grad=False)
         self.last_actions = torch.zeros(self.num_envs, self.num_actions, dtype=torch.float, device=self.device,
                                         requires_grad=False)
+
+        forward = quat_apply(self.base_quat, self.forward_vec)
+        self.heading = torch.atan2(forward[:, 1], forward[:, 0])
+        self.init_heading = self.heading
+        # inclination: (num_envs, 2), which is in x and y directions
+        self.inclination = torch.stack(
+            [torch.cos(self.heading) * np.deg2rad(self.cfg.customize.plane_tilted_angle),
+             -torch.sin(self.heading) * np.deg2rad(self.cfg.customize.plane_tilted_angle)],
+            dim=1)
         self.last_dof_vel = torch.zeros_like(self.dof_vel)
         self.last_root_vel = torch.zeros_like(self.root_states[:, 7:13])
         self.commands = torch.zeros(self.num_envs, self.cfg.commands.num_commands, dtype=torch.float,
@@ -751,26 +779,6 @@ class LeggedRobot(BaseTask):
         self.default_dof_pos = self.default_dof_pos.unsqueeze(0)
         self.last_targets = self.default_dof_pos.repeat(self.num_envs, 1)
         self._init_pd_gains_buffer()
-        if 'env_factor' in self.cfg.customize.observation_states:
-            self._init_env_factors_dict()
-
-    def _init_env_factors_dict(self):
-        """
-        This is used to init the dict that organize the env factors.
-        It should be called after the factor buffers are initialized.
-        So it should be called after the _process_...() functions
-        :return:
-        """
-        self.env_factors_dict = {}
-        for fac in self.cfg.customize.env_factors:
-            if fac == 'payload':
-                self.env_factors_dict[fac] = torch.squeeze(self.payloads, -1)
-            elif fac == 'dof_stiffness':
-                self.env_factors_dict[fac] = self.p_gains
-            elif fac == 'dof_damping':
-                self.env_factors_dict[fac] = self.d_gains
-            elif fac == 'terrain_friction':
-                self.env_factors_dict[fac] = torch.squeeze(self.friction_coeffs, -1)
 
     def _refresh_env_factors_buffer(self, mode='init', env_ids=None):
         """
@@ -887,13 +895,13 @@ class LeggedRobot(BaseTask):
         """ Adds a ground plane to the simulation, sets friction and restitution based on the cfg.
         """
         plane_params = gymapi.PlaneParams()
-        # if self.cfg.customize.tilted_plane:
-        #     tilted_angle = np.deg2rad(self.cfg.customize.plane_tilted_angle)
-        #     normal = np.asarray([np.sin(tilted_angle), 0.0, np.cos(tilted_angle)])
-        #     normal /= np.linalg.norm(normal)
-        # else:
-        #     normal = [0.0, 0.0, 1.0]
-        plane_params.normal = gymapi.Vec3(0.0, 0.0, 1.0)
+        if self.cfg.customize.tilted_plane:
+            tilted_angle = np.deg2rad(self.cfg.customize.plane_tilted_angle)
+            normal = np.asarray([np.sin(tilted_angle), 0.0, np.cos(tilted_angle)])
+            normal /= np.linalg.norm(normal)
+        else:
+            normal = [0.0, 0.0, 1.0]
+        plane_params.normal = gymapi.Vec3(*normal)
         plane_params.static_friction = self.cfg.terrain.static_friction
         plane_params.dynamic_friction = self.cfg.terrain.dynamic_friction
         plane_params.restitution = self.cfg.terrain.restitution

@@ -8,6 +8,7 @@ import os, sys
 import pickle
 from real_deployment.transition_debugger import TransitionDebugger
 import matplotlib.pyplot as plt
+from isaacgym.torch_utils import *
 
 current_folder = os.path.dirname(__file__)
 
@@ -146,16 +147,17 @@ class WavegoRobot(LeggedRobot):
             elif state == 'sequence_dof_action':
                 obs_list.extend(list(self.sequence_dof_action))
             elif state == 'env_factor':
-                env_factor_list = []
                 for factor in self.cfg.customize.env_factors:
                     if factor == 'payload':
-                        obs_list.append(self.env_factors_dict['payload'])
+                        obs_list.append(torch.squeeze(self.payloads, -1))
                     elif factor == 'dof_stiffness':
-                        obs_list.append(self.env_factors_dict['dof_stiffness'])
+                        obs_list.append(self.p_gains)
                     elif factor == 'dof_damping':
-                        obs_list.append(self.env_factors_dict['dof_damping'])
+                        obs_list.append(self.d_gains)
                     elif factor == 'terrain_friction':
-                        obs_list.append(self.env_factors_dict['terrain_friction'])
+                        obs_list.append(torch.squeeze(self.friction_coeffs, -1))
+                    elif factor == 'inclination':
+                        obs_list.append(self.inclination)
 
         self.obs_buf = torch.cat(obs_list, dim=-1)
 
@@ -186,6 +188,13 @@ class WavegoRobot(LeggedRobot):
         self.base_lin_vel[:] = quat_rotate_inverse(self.base_quat, self.root_states[:, 7:10])
         self.base_ang_vel[:] = quat_rotate_inverse(self.base_quat, self.root_states[:, 10:13])
         self.projected_gravity[:] = quat_rotate_inverse(self.base_quat, self.gravity_vec)
+        # refresh some buffers
+        forward = quat_apply(self.base_quat, self.forward_vec)
+        self.heading = torch.atan2(forward[:, 1], forward[:, 0])
+        self.inclination = torch.stack(
+            [torch.cos(self.heading) * np.deg2rad(self.cfg.customize.plane_tilted_angle),
+             -torch.sin(self.heading) * np.deg2rad(self.cfg.customize.plane_tilted_angle)],
+            dim=1)
 
         self._post_physics_step_callback()
 
