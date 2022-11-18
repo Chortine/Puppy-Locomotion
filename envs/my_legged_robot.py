@@ -321,7 +321,7 @@ class LeggedRobot(BaseTask):
                 num_buckets = 64
                 bucket_ids = torch.randint(0, num_buckets, (self.num_envs, 1))
                 self.friction_buckets = torch_rand_float(friction_range[0], friction_range[1], (num_buckets, 1),
-                                                         device='cpu')
+                                                         device=self.device)
                 self.friction_coeffs = self.friction_buckets[bucket_ids]
 
             for s in range(len(props)):
@@ -344,7 +344,7 @@ class LeggedRobot(BaseTask):
                 num_buckets = 64
                 bucket_ids = torch.randint(0, num_buckets, (self.num_envs, 1))
                 self.mass_buckets = torch_rand_float(mass_range[0], mass_range[1], (num_buckets, 1),
-                                                     device='cpu')
+                                                     device=self.device)
                 self.payloads = self.mass_buckets[bucket_ids]
                 self.default_base_mass = props[0].mass
 
@@ -394,7 +394,7 @@ class LeggedRobot(BaseTask):
                 num_buckets = 64
                 bucket_ids = torch.randint(0, num_buckets, (self.num_envs, 1))
                 friction_buckets = torch_rand_float(friction_range[0], friction_range[1], (num_buckets, 1),
-                                                    device='cpu')
+                                                    device=self.device)
                 self.friction_coeffs = friction_buckets[bucket_ids]
 
             for s in range(len(props)):
@@ -593,6 +593,9 @@ class LeggedRobot(BaseTask):
         else:
             self.root_states[env_ids] = self.base_init_state
             self.root_states[env_ids, :3] += self.env_origins[env_ids]
+            # if self.cfg.customize.tilted_plane:
+            # z_drift = - self.env_origins[env_ids][..., 0] * np.tan(np.deg2rad(self.cfg.customize.plane_tilted_angle))
+            # self.root_states[env_ids, 2] += z_drift
         # base velocities
         self.root_states[env_ids, 7:13] = torch_rand_float(-0.5, 0.5, (len(env_ids), 6),
                                                            device=self.device)  # [7:10]: lin vel, [10:13]: ang vel
@@ -761,13 +764,13 @@ class LeggedRobot(BaseTask):
         self.env_factors_dict = {}
         for fac in self.cfg.customize.env_factors:
             if fac == 'payload':
-                self.env_factors_dict[fac] = torch.squeeze(self.payloads)
+                self.env_factors_dict[fac] = torch.squeeze(self.payloads, -1)
             elif fac == 'dof_stiffness':
                 self.env_factors_dict[fac] = self.p_gains
             elif fac == 'dof_damping':
                 self.env_factors_dict[fac] = self.d_gains
             elif fac == 'terrain_friction':
-                self.env_factors_dict[fac] = torch.squeeze(self.friction_coeffs)
+                self.env_factors_dict[fac] = torch.squeeze(self.friction_coeffs, -1)
 
     def _refresh_env_factors_buffer(self, mode='init', env_ids=None):
         """
@@ -884,6 +887,12 @@ class LeggedRobot(BaseTask):
         """ Adds a ground plane to the simulation, sets friction and restitution based on the cfg.
         """
         plane_params = gymapi.PlaneParams()
+        # if self.cfg.customize.tilted_plane:
+        #     tilted_angle = np.deg2rad(self.cfg.customize.plane_tilted_angle)
+        #     normal = np.asarray([np.sin(tilted_angle), 0.0, np.cos(tilted_angle)])
+        #     normal /= np.linalg.norm(normal)
+        # else:
+        #     normal = [0.0, 0.0, 1.0]
         plane_params.normal = gymapi.Vec3(0.0, 0.0, 1.0)
         plane_params.static_friction = self.cfg.terrain.static_friction
         plane_params.dynamic_friction = self.cfg.terrain.dynamic_friction
@@ -1026,11 +1035,12 @@ class LeggedRobot(BaseTask):
         termination_contact_names = []
         for name in self.cfg.asset.terminate_after_contacts_on:
             termination_contact_names.extend([s for s in body_names if name in s])
-
+        # self.cfg.init_state.pos[2] = -1.0
         base_init_state_list = self.cfg.init_state.pos + self.cfg.init_state.rot + self.cfg.init_state.lin_vel + self.cfg.init_state.ang_vel
         self.base_init_state = to_torch(base_init_state_list, device=self.device, requires_grad=False)
         start_pose = gymapi.Transform()
         start_pose.p = gymapi.Vec3(*self.base_init_state[:3])
+        # self.base_init_state *= 0.0
 
         self._get_env_origins()
         env_lower = gymapi.Vec3(0., 0., 0.)

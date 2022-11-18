@@ -145,13 +145,17 @@ class WavegoRobot(LeggedRobot):
                 obs_list.extend(list(self.sequence_dof_pos))
             elif state == 'sequence_dof_action':
                 obs_list.extend(list(self.sequence_dof_action))
-            # elif state == 'env_factors':
-            #     'payload',
-            #     'dof_stiffness',
-            #     'dof_damping',
-            # #     'terrain_friction'
-            #     for factor in self.cfg.customize.env_factors:
-            #         if
+            elif state == 'env_factor':
+                env_factor_list = []
+                for factor in self.cfg.customize.env_factors:
+                    if factor == 'payload':
+                        obs_list.append(self.env_factors_dict['payload'])
+                    elif factor == 'dof_stiffness':
+                        obs_list.append(self.env_factors_dict['dof_stiffness'])
+                    elif factor == 'dof_damping':
+                        obs_list.append(self.env_factors_dict['dof_damping'])
+                    elif factor == 'terrain_friction':
+                        obs_list.append(self.env_factors_dict['terrain_friction'])
 
         self.obs_buf = torch.cat(obs_list, dim=-1)
 
