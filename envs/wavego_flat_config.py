@@ -245,7 +245,7 @@ class WavegoFlatCfg(LeggedRobotCfg):
         # added_mass_ratio_range = [10.0, 10.0]
         added_mass_range = [0.0, 0.6]
         randomize_restitution = True
-        restitution_range = [0.0, 2.0]
+        restitution_range = [0.0, 1.0]
         push_robots = True
         push_interval_s = 5
         max_push_vel_xy = 0.15
