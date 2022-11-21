@@ -7,12 +7,12 @@ import os, sys
 current_root = os.path.dirname(os.path.dirname(__file__))
 # j0_default_ang = np.radians()
 j0 = 4  # from 90 to 0
-j1 = 15  # from 45 to -90
+j1 = 45  # from 45 to -90
 j2 = -15  # from -45 to 30
 
-var_init_pos = [0.0, 0.0, 0.1]
-var_fix_base_link = False
-var_action_scale = 0.25
+var_init_pos = [0.0, 0.0, 1.1]
+var_fix_base_link = True
+var_action_scale = 0.0
 var_decimation = 25
 var_dt = 0.002
 var_relative_action = False
@@ -121,6 +121,10 @@ class WavegoFlatCfg(LeggedRobotCfg):
         ]
         tilted_plane = True
         plane_tilted_angle = 6
+        # obs mem
+        rma_obs_mem_len = 50
+        rma_obs_size = 3+4+3+12
+        use_rma_obs_mem = False
 
     class init_state(LeggedRobotCfg.init_state):
         pos = var_init_pos  # x,y,z [m]

@@ -42,6 +42,11 @@ class WavegoRobot(LeggedRobot):
             self.mem["c_pitch"].append(torch.ones(self.num_envs, 1).cuda())
             self.mem["base_ang_vel"].append(torch.zeros(self.num_envs, 3).cuda())
             self.mem["actions"].append(torch.zeros(self.num_envs, 12).cuda())
+        # rma_obs_memory
+        self.rma_obs_mem = deque(maxlen=self.cfg.customize.rma_obs_mem_len)
+        for i in range(self.cfg.customize.rma_obs_mem_len):
+            self.rma_obs_mem.append(torch.zeros(self.num_envs, self.cfg.customize.rma_obs_size).cuda())
+
 
     def _init_buffers(self):
         super()._init_buffers()
@@ -112,12 +117,14 @@ class WavegoRobot(LeggedRobot):
 
         # make obs_list
         obs_list = []
+        obs_mem_list = []
         for state in self.cfg.customize.observation_states:
             if state == 'angular_v':
                 if self.cfg.customize.use_state_mem:
                     obs_list.append(mem_obs["base_ang_vel"])
                 else:
                     obs_list.append(self.base_ang_vel * self.obs_scales.ang_vel)
+                obs_mem_list.append(self.base_ang_vel * self.obs_scales.ang_vel)
             elif state == 'row_pitch':
                 if self.cfg.customize.use_state_mem:
                     obs_list.append(mem_obs["s_roll"])
@@ -129,8 +136,13 @@ class WavegoRobot(LeggedRobot):
                     obs_list.append(c_roll)
                     obs_list.append(s_pitch)
                     obs_list.append(c_pitch)
+                obs_mem_list.append(s_roll)
+                obs_mem_list.append(c_roll)
+                obs_mem_list.append(s_pitch)
+                obs_mem_list.append(c_pitch)
             elif state == 'top_commands':
                 obs_list.append(self.commands[:, :3] * self.commands_scale)
+                obs_mem_list.append(self.commands[:, :3] * self.commands_scale)
             elif state == 'dof_pos':
                 obs_list.append((self.dof_pos - self.default_dof_pos) * self.obs_scales.dof_pos)
             elif state == 'dof_vel':
@@ -140,6 +152,7 @@ class WavegoRobot(LeggedRobot):
                     obs_list.append(mem_obs["actions"])
                 else:
                     obs_list.append(self.actions)
+                obs_mem_list.append(self.actions)
             elif state == 'targets':
                 obs_list.append(self.targets)
             elif state == 'sequence_dof_pos':
@@ -162,6 +175,12 @@ class WavegoRobot(LeggedRobot):
                         obs_list.append(torch.squeeze(self.restitution, -1))
 
         self.obs_buf = torch.cat(obs_list, dim=-1)
+        obs_mem_buf = torch.cat(obs_mem_list, dim=-1)
+        self.rma_obs_mem.append(obs_mem_buf)
+        if self.cfg.customize.use_rma_obs_mem:
+            # append the rma_obs_mem to the obs_buf
+            rma_obs_mem = torch.cat(list(self.rma_obs_mem), dim=-1)
+            print('done')
 
         # add perceptive inputs if not blind
         if self.cfg.terrain.measure_heights:
