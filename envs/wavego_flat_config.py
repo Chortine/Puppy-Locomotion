@@ -255,7 +255,7 @@ class WavegoFlatCfg(LeggedRobotCfg):
 
         randomize_pd = True
         stiffness = {
-            '0': [3.0, 15.0], '1': [2., 15.], '2': [2., 15.],
+            '0': [3.0, 3.0], '1': [1., 2.], '2': [1., 2.],
         }
 
         damping = {
