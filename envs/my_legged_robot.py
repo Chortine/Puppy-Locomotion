@@ -331,6 +331,25 @@ class LeggedRobot(BaseTask):
 
             for s in range(len(props)):
                 props[s].friction = self.friction_coeffs[env_id]
+                props[s].rolling_friction = self.friction_coeffs[env_id]
+                props[s].torsion_friction = self.friction_coeffs[env_id]
+
+        # ============== randomize restitution ============== #
+        if self.cfg.domain_rand.randomize_restitution:
+            if env_id == 0:
+                rest_range = self.cfg.domain_rand.restitution_range
+                num_buckets = 64
+                bucket_ids = torch.randint(0, num_buckets, (self.num_envs, 1))
+                self.rest_buckets = torch_rand_float(rest_range[0], rest_range[1], (num_buckets, 1),
+                                                         device=self.device)
+                self.restitution = self.rest_buckets[bucket_ids]
+
+            for s in range(len(props)):
+                body_name = self.body_names[s]
+                # props[s].contact_offset = 0.005
+                if '_l3' in body_name or '_l2' in body_name:
+                    # props[s].compliance = 1000.0
+                    props[s].restitution = self.restitution[env_id]
         return props
 
     def _process_rigid_body_props(self, props, env_id):
@@ -345,7 +364,7 @@ class LeggedRobot(BaseTask):
         if self.cfg.domain_rand.randomize_base_mass:
             if env_id == 0:
                 # prepare friction randomization
-                mass_range = self.cfg.domain_rand.friction_range
+                mass_range = self.cfg.domain_rand.added_mass_range
                 num_buckets = 64
                 bucket_ids = torch.randint(0, num_buckets, (self.num_envs, 1))
                 self.mass_buckets = torch_rand_float(mass_range[0], mass_range[1], (num_buckets, 1),
@@ -800,6 +819,8 @@ class LeggedRobot(BaseTask):
                 self.cfg.domain_rand.randomize_pd = True
             if 'terrain_friction' in self.cfg.customize.env_factors:
                 self.cfg.domain_rand.randomize_friction = True
+            if 'restitution' in self.cfg.customize.env_factors:
+                self.cfg.domain_rand.randomize_restitution = True
 
         elif mode == 'reset':
             assert env_ids is not None
@@ -811,6 +832,10 @@ class LeggedRobot(BaseTask):
             if 'terrain_friction' in self.cfg.customize.env_factors:
                 bucket_ids = torch.randint(0, 64, (len(env_ids), 1))
                 self.friction_coeffs[env_ids] = self.friction_buckets[bucket_ids]
+
+            if 'restitution' in self.cfg.customize.env_factors:
+                bucket_ids = torch.randint(0, 64, (len(env_ids), 1))
+                self.restitution[env_ids] = self.rest_buckets[bucket_ids]
 
             if 'dof_stiffness' in self.cfg.customize.env_factors or 'dof_damping' in self.cfg.customize.env_factors:
                 for env_id in env_ids:
@@ -839,8 +864,15 @@ class LeggedRobot(BaseTask):
                                                          recomputeInertia=True)
                 # 2. modify rigid shape properties
                 shape_props = self.gym.get_actor_rigid_shape_properties(self.envs[env_id], self.actor_handles[env_id])
-                for prop in shape_props:  # for every rigid shape in this env
+                for prop, body_name in zip(shape_props, self.body_names):  # for every rigid shape in this env
                     prop.friction = self.friction_coeffs[env_id]
+                    prop.rolling_friction = self.friction_coeffs[env_id]
+                    prop.torsion_friction = self.friction_coeffs[env_id]
+                    # props[s].contact_offset = 0.005
+                    if '_l3' in body_name or '_l2' in body_name:
+                        # props[s].compliance = 1000.0
+                        prop.restitution = self.restitution[env_id]
+
                 self.gym.set_actor_rigid_shape_properties(self.envs[env_id], self.actor_handles[env_id], shape_props)
                 # 3. modify dof properties
                 dof_props = self.gym.get_actor_dof_properties(self.envs[env_id], self.actor_handles[env_id])
@@ -902,9 +934,9 @@ class LeggedRobot(BaseTask):
         else:
             normal = [0.0, 0.0, 1.0]
         plane_params.normal = gymapi.Vec3(*normal)
-        plane_params.static_friction = self.cfg.terrain.static_friction
-        plane_params.dynamic_friction = self.cfg.terrain.dynamic_friction
-        plane_params.restitution = self.cfg.terrain.restitution
+        plane_params.static_friction = 0.0
+        plane_params.dynamic_friction = 0.0
+        plane_params.restitution = 0.0
         self.gym.add_ground(self.sim, plane_params)
 
     def _create_ground_plane2(self):

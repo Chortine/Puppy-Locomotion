@@ -158,6 +158,8 @@ class WavegoRobot(LeggedRobot):
                         obs_list.append(torch.squeeze(self.friction_coeffs, -1))
                     elif factor == 'inclination':
                         obs_list.append(self.inclination)
+                    elif factor == 'restitution':
+                        obs_list.append(torch.squeeze(self.restitution, -1))
 
         self.obs_buf = torch.cat(obs_list, dim=-1)
 

@@ -78,7 +78,7 @@ legs_name = ['rr', 'rl', 'fr', 'fl']
 obs_mem_len = 4
 
 observation_states_size = OrderedDict({  # the order matters
-    # 'env_factor': 1 + 12 + 12 + 1 + 2,
+    'env_factor': 1 + 12 + 12 + 1 + 2 + 1,
     # 'sequence_dof_pos': 50 * 12,
     # 'sequence_dof_action': 50 * 12,
     'angular_v': 3 * obs_mem_len,
@@ -116,6 +116,7 @@ class WavegoFlatCfg(LeggedRobotCfg):
             'dof_damping',
             'terrain_friction',
             'inclination',
+            'restitution'
             # 'delay',  ## ????
         ]
         tilted_plane = True
@@ -143,6 +144,7 @@ class WavegoFlatCfg(LeggedRobotCfg):
         measure_heights = False
         static_friction = 1.0
         dynamic_friction = 1.0
+        # restitution = 0.9
 
     class commands:
         curriculum = False
@@ -238,9 +240,12 @@ class WavegoFlatCfg(LeggedRobotCfg):
 
     class domain_rand(LeggedRobotCfg.domain_rand):
         randomize_friction = True
-        friction_range = [0.1, 0.3]
-        randomize_base_mass = False
-        added_mass_ratio_range = [0.0, 0.6]
+        friction_range = [0.25, 2.0]
+        randomize_base_mass = True
+        # added_mass_ratio_range = [10.0, 10.0]
+        added_mass_range = [0.0, 0.6]
+        randomize_restitution = True
+        restitution_range = [0.0, 2.0]
         push_robots = True
         push_interval_s = 5
         max_push_vel_xy = 0.15
@@ -250,7 +255,7 @@ class WavegoFlatCfg(LeggedRobotCfg):
 
         randomize_pd = True
         stiffness = {
-            '0': [3.0, 3.0], '1': [1., 2.], '2': [1., 2.],
+            '0': [3.0, 15.0], '1': [2., 15.], '2': [2., 15.],
         }
 
         damping = {
