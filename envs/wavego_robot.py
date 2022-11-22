@@ -11,7 +11,8 @@ import matplotlib.pyplot as plt
 from isaacgym.torch_utils import *
 
 current_folder = os.path.dirname(__file__)
-
+from collections import OrderedDict
+from envs.wavego_flat_config import get_obs_len
 
 class WavegoRobot(LeggedRobot):
     """
@@ -20,6 +21,10 @@ class WavegoRobot(LeggedRobot):
 
     def __init__(self, cfg, sim_params, physics_engine, sim_device, headless):
         super().__init__(cfg, sim_params, physics_engine, sim_device, headless)
+        self.obs_shape_dict = self.cfg.customize.obs_shape_dict
+        self.obs_group_shape = {'obs_tensor': (get_obs_len(self.obs_shape_dict['obs_tensor']),)}
+        if 'rma_obs_mem' in self.obs_shape_dict.keys():
+            self.obs_group_shape.update({'rma_obs_mem': self.obs_shape_dict['rma_obs_mem']})
         self.sim_device = sim_device
         if self.cfg.customize.debugger_mode != 'none':
             self.debugger = TransitionDebugger(mode=self.cfg.customize.debugger_mode,
@@ -42,6 +47,11 @@ class WavegoRobot(LeggedRobot):
             self.mem["c_pitch"].append(torch.ones(self.num_envs, 1).cuda())
             self.mem["base_ang_vel"].append(torch.zeros(self.num_envs, 3).cuda())
             self.mem["actions"].append(torch.zeros(self.num_envs, 12).cuda())
+        # rma_obs_memory
+        self.rma_obs_mem = deque(maxlen=self.cfg.customize.rma_obs_mem_len)
+        if 'rma_obs_mem' in self.obs_shape_dict.keys():
+            for i in range(self.cfg.customize.rma_obs_mem_len):
+                self.rma_obs_mem.append(torch.zeros(self.num_envs, self.cfg.customize.obs_shape_dict['rma_obs_mem'][0]).cuda())
 
     def _init_buffers(self):
         super()._init_buffers()
@@ -70,7 +80,11 @@ class WavegoRobot(LeggedRobot):
                 tmp = nan_idx.detach().cpu().numpy()
                 tmp = np.unique(tmp[:, 0])
                 print(f'!!! Still has nan on env {tmp}')
-        return self.obs_buf, self.privileged_obs_buf, self.rew_buf, self.reset_buf, self.extras
+        obs_dict = {
+            'obs_tensor': self.obs_buf}
+        if 'rma_obs_mem' in self.obs_shape_dict.keys():
+            obs_dict.update({'rma_obs_mem': torch.stack(list(self.rma_obs_mem), dim=-1)})
+        return obs_dict, self.privileged_obs_buf, self.rew_buf, self.reset_buf, self.extras
 
     def update_and_get_state_mem(self, s_roll, c_roll, s_pitch, c_pitch):
 
@@ -80,16 +94,23 @@ class WavegoRobot(LeggedRobot):
         self.mem["c_pitch"].append(c_pitch)
         self.mem["base_ang_vel"].append(self.base_ang_vel * self.obs_scales.ang_vel)
         if self.cfg.noise.add_noise:
-            self.mem["actions"].append(self.actions + 0.05*torch.rand(self.cfg.env.num_envs, 12).cuda())
+            self.mem["actions"].append(self.actions + 0.05 * torch.rand(self.cfg.env.num_envs, 12).cuda())
         else:
             self.mem["actions"].append(self.actions)
 
         result = {}
         for key in self.mem.keys():
             result[key] = self.mem[key][-1]
-            for i in range(self.obs_mem_len-1):
-                result[key] = torch.concat((result[key], self.mem[key][-1 - self.obs_mem_skip*i - self.obs_mem_skip]), 1)
+            for i in range(self.obs_mem_len - 1):
+                result[key] = torch.concat((result[key], self.mem[key][-1 - self.obs_mem_skip * i - self.obs_mem_skip]), 1)
         return result
+
+    def get_observations(self):
+        obs_dict = {
+            'obs_tensor': self.obs_buf}
+        if 'rma_obs_mem' in self.obs_shape_dict.keys():
+            obs_dict.update({'rma_obs_mem': torch.stack(list(self.rma_obs_mem), dim=-1)})
+        return obs_dict
 
     def compute_observations(self):
         """
@@ -112,36 +133,46 @@ class WavegoRobot(LeggedRobot):
 
         # make obs_list
         obs_list = []
-        for state in self.cfg.customize.observation_states:
-            if state == 'angular_v':
-                if self.cfg.customize.use_state_mem:
-                    obs_list.append(mem_obs["base_ang_vel"])
-                else:
-                    obs_list.append(self.base_ang_vel * self.obs_scales.ang_vel)
-            elif state == 'row_pitch':
-                if self.cfg.customize.use_state_mem:
-                    obs_list.append(mem_obs["s_roll"])
-                    obs_list.append(mem_obs["c_roll"])
-                    obs_list.append(mem_obs["s_pitch"])
-                    obs_list.append(mem_obs["c_pitch"])
-                else:
-                    obs_list.append(s_roll)
-                    obs_list.append(c_roll)
-                    obs_list.append(s_pitch)
-                    obs_list.append(c_pitch)
-            elif state == 'top_commands':
-                obs_list.append(self.commands[:, :3] * self.commands_scale)
-            elif state == 'dof_pos':
-                obs_list.append((self.dof_pos - self.default_dof_pos) * self.obs_scales.dof_pos)
-            elif state == 'dof_vel':
-                obs_list.append(dof_vel_from_deviation * self.obs_scales.dof_vel)
-            elif state == 'dof_action':
-                if self.cfg.customize.use_state_mem:
-                    obs_list.append(mem_obs["actions"])
-                else:
-                    obs_list.append(self.actions)
-            elif state == 'targets':
-                obs_list.append(self.targets)
+        obs_mem_list = []
+        for state in self.cfg.customize.obs_shape_dict['obs_tensor']:
+            if state == 'common_states':
+                for common_state in self.cfg.customize.obs_shape_dict['obs_tensor']['common_states']:
+                    if common_state == 'angular_v':
+                        if self.cfg.customize.use_state_mem:
+                            obs_list.append(mem_obs["base_ang_vel"])
+                        else:
+                            obs_list.append(self.base_ang_vel * self.obs_scales.ang_vel)
+                        obs_mem_list.append(self.base_ang_vel * self.obs_scales.ang_vel)
+                    elif common_state == 'row_pitch':
+                        if self.cfg.customize.use_state_mem:
+                            obs_list.append(mem_obs["s_roll"])
+                            obs_list.append(mem_obs["c_roll"])
+                            obs_list.append(mem_obs["s_pitch"])
+                            obs_list.append(mem_obs["c_pitch"])
+                        else:
+                            obs_list.append(s_roll)
+                            obs_list.append(c_roll)
+                            obs_list.append(s_pitch)
+                            obs_list.append(c_pitch)
+                        obs_mem_list.append(s_roll)
+                        obs_mem_list.append(c_roll)
+                        obs_mem_list.append(s_pitch)
+                        obs_mem_list.append(c_pitch)
+                    elif common_state == 'top_commands':
+                        obs_list.append(self.commands[:, :3] * self.commands_scale)
+                        obs_mem_list.append(self.commands[:, :3] * self.commands_scale)
+                    elif common_state == 'dof_pos':
+                        obs_list.append((self.dof_pos - self.default_dof_pos) * self.obs_scales.dof_pos)
+                    elif common_state == 'dof_vel':
+                        obs_list.append(dof_vel_from_deviation * self.obs_scales.dof_vel)
+                    elif common_state == 'dof_action':
+                        if self.cfg.customize.use_state_mem:
+                            obs_list.append(mem_obs["actions"])
+                        else:
+                            obs_list.append(self.actions)
+                        obs_mem_list.append(self.actions)
+                    elif common_state == 'targets':
+                        obs_list.append(self.targets)
             elif state == 'sequence_dof_pos':
                 obs_list.extend(list(self.sequence_dof_pos))
             elif state == 'sequence_dof_action':
@@ -162,6 +193,9 @@ class WavegoRobot(LeggedRobot):
                         obs_list.append(torch.squeeze(self.restitution, -1))
 
         self.obs_buf = torch.cat(obs_list, dim=-1)
+        obs_mem_buf = torch.cat(obs_mem_list, dim=-1)
+        if 'rma_obs_mem' in self.obs_shape_dict.keys():
+            self.rma_obs_mem.append(obs_mem_buf)
 
         # add perceptive inputs if not blind
         if self.cfg.terrain.measure_heights:

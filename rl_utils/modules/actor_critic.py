@@ -10,81 +10,99 @@ from torch.nn.modules import rnn
 
 class ActorCriticNet(nn.Module):
     def __init__(self,
-                 observation_states,
-                 observation_states_size,
+                 obs_shape_dict,
                  num_actions,
                  actor_hidden_dims,
                  critic_hidden_dims,
-                 activation):
+                 activation,
+                 ):
+
         super(ActorCriticNet, self).__init__()
-        self.observation_states = observation_states
-        self.observation_states_size = observation_states_size
-
-        self.copy_observation_states = copy.deepcopy(observation_states)
-
+        self.obs_groups = list(obs_shape_dict.keys())
+        self.states_in_regular_obs = list(obs_shape_dict['obs_tensor'].keys())
+        self.regular_obs_shape_dict = obs_shape_dict['obs_tensor']
         self.state_encoder_dict = {}
 
         self.policy_input_size = 0
 
+        # ============== rma obs mem CNN encoder =========== #
+        if 'rma_obs_mem' in self.obs_groups:
+            # capture the temporal relations
+            rma_obs_size = obs_shape_dict['rma_obs_mem'][0]
+            self.cnn_encoder = nn.Sequential(
+                nn.Conv1d(in_channels=rma_obs_size, out_channels=rma_obs_size, kernel_size=8, stride=4,
+                          padding=0),
+                activation,
+                nn.Conv1d(in_channels=rma_obs_size, out_channels=rma_obs_size, kernel_size=5, stride=1,
+                          padding=0),
+                activation,
+                nn.Conv1d(in_channels=rma_obs_size, out_channels=rma_obs_size, kernel_size=5, stride=1,
+                          padding=0),
+                activation
+            )
+            self.cnn_encoder.append(nn.Flatten())
+            self.cnn_encoder.append(nn.Linear(66, 8))
+            self.cnn_encoder.append(activation)
+
+            self.z_loss = nn.MSELoss()
+
         # =============== encoders ================ #
-        if 'env_factor' in self.observation_states:
-            self.copy_observation_states.remove('env_factor')
+        if 'env_factor' in self.states_in_regular_obs:
+            embedding_size = 8
             # make the env factor encoder:
             self.env_factor_encoder = nn.Sequential(
-                torch.nn.Linear(observation_states_size['env_factor'], 256),
+                torch.nn.Linear(self.regular_obs_shape_dict['env_factor'], 256),
                 activation,
                 torch.nn.Linear(256, 128),
                 activation,
-                torch.nn.Linear(128, 8),
+                torch.nn.Linear(128, embedding_size),
                 activation
             )
             self.state_encoder_dict['env_factor'] = self.env_factor_encoder
-            self.policy_input_size += 8
+            self.policy_input_size += embedding_size
 
-        if 'sequence_dof_pos' in self.observation_states:
-            self.copy_observation_states.remove('sequence_dof_pos')
+        if 'sequence_dof_pos' in self.states_in_regular_obs:
+            embedding_size = 16
             # sequence observation
             self.sequence_dof_pos_encoder = nn.Sequential(
-                torch.nn.Linear(observation_states_size['sequence_dof_pos'], 256),
+                torch.nn.Linear(self.regular_obs_shape_dict['sequence_dof_pos'], 256),
                 activation,
                 torch.nn.Linear(256, 128),
                 activation,
-                torch.nn.Linear(128, 16),
+                torch.nn.Linear(128, embedding_size),
                 activation
             )
             self.state_encoder_dict['sequence_dof_pos'] = self.sequence_dof_pos_encoder
-            self.policy_input_size += 16
+            self.policy_input_size += embedding_size
 
-        if 'sequence_dof_action' in self.observation_states:
-            self.copy_observation_states.remove('sequence_dof_action')
+        if 'sequence_dof_action' in self.states_in_regular_obs:
+            embedding_size = 16
             # sequence observation
             self.sequence_dof_action_encoder = nn.Sequential(
-                torch.nn.Linear(observation_states_size['sequence_dof_action'], 256),
+                torch.nn.Linear(self.regular_obs_shape_dict['sequence_dof_action'], 256),
                 activation,
                 torch.nn.Linear(256, 128),
                 activation,
-                torch.nn.Linear(128, 16),
+                torch.nn.Linear(128, embedding_size),
                 activation
             )
             self.state_encoder_dict['sequence_dof_action'] = self.sequence_dof_action_encoder
-            self.policy_input_size += 16
+            self.policy_input_size += embedding_size
 
         # for other obs, will use common encoder
-        self.common_encoder = None
-        common_states_size = 0
-        for obs in self.copy_observation_states:
-            common_states_size += self.observation_states_size[obs]
-        if common_states_size > 0:
+        if 'common_states' in self.states_in_regular_obs:
+            embedding_size = 64
+            common_states_size = sum(list(self.regular_obs_shape_dict['common_states'].values()))
             self.common_encoder = nn.Sequential(
                 torch.nn.Linear(common_states_size, 256),
                 activation,
                 torch.nn.Linear(256, 128),
                 activation,
-                torch.nn.Linear(128, 64),
+                torch.nn.Linear(128, embedding_size),
                 activation
             )
-            self.state_encoder_dict['common_encoder'] = self.common_encoder
-            self.policy_input_size += 64
+            self.state_encoder_dict['common_states'] = self.common_encoder
+            self.policy_input_size += embedding_size
 
         # =============== base policy ================ #
         policy_layers = []
@@ -111,112 +129,74 @@ class ActorCriticNet(nn.Module):
                 critic_layers.append(activation)
         self.critic = nn.Sequential(*critic_layers)
 
-    def forward(self, obs_tensor):
+    def forward(self, obs_dict: dict):
+        if 'rma_obs_mem' in self.obs_groups:
+            # encode rma_obs_mem
+            rma_obs_mem = obs_dict['rma_obs_mem']
+            z_rma_mem = self.cnn_encoder(rma_obs_mem)
+
+        obs_tensor = obs_dict['obs_tensor']
         X = []
         start_idx = 0
-        copy_observation_states = copy.deepcopy(self.observation_states)
-        only_common_states = False
-        while not only_common_states and len(copy_observation_states) > 0:
-            state_name = copy_observation_states[0]
-            if state_name in ['env_factor', 'sequence_dof_pos', 'sequence_dof_action']:
-                copy_observation_states.pop(0)
-                embedding = self.state_encoder_dict[state_name](obs_tensor[..., start_idx: start_idx+self.observation_states_size[state_name]])
-                X.append(embedding)
-                start_idx += self.observation_states_size[state_name]
+        for state_name in self.states_in_regular_obs:
+            if state_name == 'common_states':
+                state_size = sum(list(self.regular_obs_shape_dict['common_states'].values()))
             else:
-                break
+                state_size = self.regular_obs_shape_dict[state_name]
 
-        if len(copy_observation_states) > 0:
-            common_states = obs_tensor[..., start_idx:]
-            common_states_embedding = self.state_encoder_dict['common_encoder'](common_states)
-            X.append(common_states_embedding)
+            states_embedding = self.state_encoder_dict[state_name](obs_tensor[..., start_idx: start_idx + state_size])
+            if state_name == 'env_factor':
+                z_env_factor = states_embedding
+                if 'rma_obs_mem' in self.obs_groups:
+                    X.append(z_rma_mem)
+                else:
+                    X.append(z_env_factor)
+            else:
+                X.append(states_embedding)
 
-        # for state in self.observation_states:
-        #     if state == ''
-        # if 'env_factor' in self.observation_states:
-        #     # encode the env_factor:
-        #     env_factor_embedding = self.env_factor_encoder(obs_dict['env_factor'])
-        #     X.append(env_factor_embedding)
-        # if 'sequence_dof_pos' in self.observation_states:
-        #     # encode the sequence of dof_pos
-        #     dof_pos_embedding = self.sequence_dof_pos_encoder(obs_dict['sequence_dof_pos'])
-        #     X.append(dof_pos_embedding)
-        # if 'sequence_dof_action' in self.observation_states:
-        #     dof_action_embedding = self.sequence_dof_action_encoder(obs_dict['sequence_dof_action'])
-        #     X.append(dof_action_embedding)
-        #
-        # if len(self.copy_observation_states) > 0:
-        #     common_states = []
-        #     for state in self.copy_observation_states:
-        #         common_states.append(obs_dict[state])
-        #     common_states = torch.cat(common_states, dim=-1)
-        #     common_states_embedding = self.common_encoder(common_states)
-        #     X.append(common_states_embedding)
+            start_idx += state_size
 
         X = torch.cat(X, dim=-1)
         action_mean = self.base_policy(X)
         value = self.critic(X)
-        return action_mean, value
+        if 'rma_obs_mem' in self.obs_groups:
+            # num_envs * 8
+            z_loss = self.z_loss(z_rma_mem, z_env_factor)
+            return action_mean, value, z_loss
+        else:
+            return action_mean, value
 
 
 class ActorCritic(nn.Module):
     is_recurrent = False
 
-    def __init__(self, num_actor_obs,
+    def __init__(self,
+                 obs_shape_dict,
                  num_critic_obs,
                  num_actions,
                  actor_hidden_dims=[256, 256, 256],
                  critic_hidden_dims=[256, 256, 256],
                  activation='elu',
                  init_noise_std=1.0,
-                 observation_states=[],
-                 observation_states_size={},
                  **kwargs):
         if kwargs:
             print("ActorCritic.__init__ got unexpected arguments, which will be ignored: " + str(
                 [key for key in kwargs.keys()]))
         super(ActorCritic, self).__init__()
-
+        self.obs_shape_dict = obs_shape_dict
+        if 'rma_obs_mem' in self.obs_shape_dict.keys():
+            self.rma_regression_loss = True
+        else:
+            self.rma_regression_loss = False
         activation = get_activation(activation)
 
-        mlp_input_dim_a = num_actor_obs
-        mlp_input_dim_c = num_critic_obs
-
         # Policy
-        # actor_layers = []
-        # actor_layers.append(nn.Linear(mlp_input_dim_a, actor_hidden_dims[0]))
-        # actor_layers.append(activation)
-        #
-        # for l in range(len(actor_hidden_dims)):
-        #     if l == len(actor_hidden_dims) - 1:
-        #         actor_layers.append(nn.Linear(actor_hidden_dims[l], num_actions))
-        #     else:
-        #         actor_layers.append(nn.Linear(actor_hidden_dims[l], actor_hidden_dims[l + 1]))
-        #         actor_layers.append(activation)
-        # self.actor = nn.Sequential(*actor_layers)
-        # self.actor = Actor(observation_states, observation_states_size, num_actions)
-        self.policy = ActorCriticNet(observation_states,
-                                     observation_states_size,
+        self.policy = ActorCriticNet(obs_shape_dict,
                                      num_actions,
                                      actor_hidden_dims,
                                      critic_hidden_dims,
-                                     activation)
-
-        # # Value function
-        # critic_layers = []
-        # critic_layers.append(nn.Linear(mlp_input_dim_c, critic_hidden_dims[0]))
-        # critic_layers.append(activation)
-        # for l in range(len(critic_hidden_dims)):
-        #     if l == len(critic_hidden_dims) - 1:
-        #         critic_layers.append(nn.Linear(critic_hidden_dims[l], 1))
-        #     else:
-        #         critic_layers.append(nn.Linear(critic_hidden_dims[l], critic_hidden_dims[l + 1]))
-        #         critic_layers.append(activation)
-        # self.critic = nn.Sequential(*critic_layers)
-
-        # print(f"Actor MLP: {self.actor}")
-        # print(f"Critic MLP: {self.critic}")
-
+                                     activation,
+                                     )
         # Action noise
         self.std = nn.Parameter(init_noise_std * torch.ones(num_actions))
         self.distribution = None
@@ -252,12 +232,19 @@ class ActorCritic(nn.Module):
         return self.distribution.entropy().sum(dim=-1)
 
     def update_distribution(self, observations):
-        mean, self.value = self.policy(observations)
+        if self.rma_regression_loss:
+            mean, self.value, self.z_loss = self.policy(observations)
+        else:
+            mean, self.value = self.policy(observations)
         self.distribution = Normal(mean, mean * 0. + self.std)
 
     def act(self, observations, **kwargs):
         self.update_distribution(observations)
         return self.distribution.sample()
+
+    @property
+    def rma_z_loss(self):
+        return self.z_loss
 
     def get_actions_log_prob(self, actions):
         return self.distribution.log_prob(actions).sum(dim=-1)

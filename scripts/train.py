@@ -47,7 +47,7 @@ def train(args):
     # args.task = 'a1_flat_default'
     # args.task = "a1"
     # args.task = "a1_flat"
-    args.num_envs = 12000
+    args.num_envs = 10
     args.seed = 42
     args.resume = False
     # args.checkpoint = -1

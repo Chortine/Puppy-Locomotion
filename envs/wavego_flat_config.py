@@ -77,18 +77,38 @@ legs_name = ['rr', 'rl', 'fr', 'fl']
 
 obs_mem_len = 4
 
-observation_states_size = OrderedDict({  # the order matters
-    'env_factor': 1 + 12 + 12 + 1 + 2 + 1,
-    # 'sequence_dof_pos': 50 * 12,
-    # 'sequence_dof_action': 50 * 12,
-    'angular_v': 3 * obs_mem_len,
-    'row_pitch': 4 * obs_mem_len,
-    'top_commands': 3,
-    # 'dof_pos': 12,
-    # 'dof_vel': 12,
-    'dof_action': 12 * obs_mem_len,
-    # 'targets': 12
-})
+# （硬生生写成了drill TAT...)
+obs_shape_dict = {
+    'obs_tensor': {
+        'env_factor': 1 + 12 + 12 + 1 + 2 + 1,
+        # 'sequence_dof_pos': 50 * 12,
+        # 'sequence_dof_action': 50 * 12,
+        'common_states': {
+            'angular_v': 3 * obs_mem_len,
+            'row_pitch': 4 * obs_mem_len,
+            'top_commands': 3,
+            # 'dof_pos': 12,
+            # 'dof_vel': 12,
+            'dof_action': 12 * obs_mem_len,
+            # 'targets': 12
+        }
+    },
+    # 'rma_obs_mem': (22, 50,)
+}
+
+
+def get_obs_len(obs_shape_dict: dict):
+    value_sum = 0
+    if not isinstance(obs_shape_dict, dict):
+        return obs_shape_dict
+    for key, value in obs_shape_dict.items():
+        if isinstance(value, dict):
+            value_sum += get_obs_len(value)
+        else:
+            if not isinstance(value, int):
+                return value
+            value_sum += value
+    return value_sum
 
 
 class WavegoFlatCfg(LeggedRobotCfg):
@@ -99,8 +119,7 @@ class WavegoFlatCfg(LeggedRobotCfg):
         debugger_mode = 'none'
         debugger_sequence_len = 500
         state_sequence_len = 50
-        observation_states = list(observation_states_size.keys())
-        observation_states_size = observation_states_size
+        obs_shape_dict = obs_shape_dict
         use_state_mem = True  # the adding memory way by wangjing
         obs_mem_len = obs_mem_len  # 0.15*4 = 0.6
         obs_mem_skip = 3  # 3*0.05 = 0.15
@@ -121,6 +140,8 @@ class WavegoFlatCfg(LeggedRobotCfg):
         ]
         tilted_plane = True
         plane_tilted_angle = 6
+        # obs mem
+        rma_obs_mem_len = 50
 
     class init_state(LeggedRobotCfg.init_state):
         pos = var_init_pos  # x,y,z [m]
@@ -132,7 +153,7 @@ class WavegoFlatCfg(LeggedRobotCfg):
             default_joint_angles[f'{leg}_j2'] = np.radians(j2)
 
     class env(LeggedRobotCfg.env):
-        num_observations = sum(list(observation_states_size.values()))
+        num_observations = get_obs_len(obs_shape_dict['obs_tensor'])
         episode_length_s = 50
 
     class sim(LeggedRobotCfg.sim):
@@ -265,8 +286,6 @@ class WavegoFlatCfg(LeggedRobotCfg):
 
 class WavegoFlatCfgPPO(LeggedRobotCfgPPO):
     class policy(LeggedRobotCfgPPO.policy):
-        observation_states = list(observation_states_size.keys())
-        observation_states_size = dict(observation_states_size)
         activation = 'elu'
 
     class algorithm(LeggedRobotCfgPPO.algorithm):
@@ -277,3 +296,9 @@ class WavegoFlatCfgPPO(LeggedRobotCfgPPO):
         experiment_name = 'flat_wavego'
         save_interval = 30
         max_iterations = 4000
+
+
+if __name__ == "__main__":
+    # test something here
+    shape = get_obs_len(obs_shape_dict['obs_tensor'])
+    print('done')
