@@ -65,7 +65,7 @@ class PPO:
         # PPO components
         self.actor_critic = actor_critic
         self.actor_critic.to(self.device)
-        if 'rma_obs_mem' in self.actor_critic.obs_shape_dict.keys():
+        if self.actor_critic.rma_regression_loss:
             self.rma_regression_loss = True
             self.z_loss_coeff = 1.0
         else:

@@ -15,6 +15,7 @@ class ActorCriticNet(nn.Module):
                  actor_hidden_dims,
                  critic_hidden_dims,
                  activation,
+                 regression_loss
                  ):
 
         super(ActorCriticNet, self).__init__()
@@ -24,6 +25,7 @@ class ActorCriticNet(nn.Module):
         self.state_encoder_dict = {}
 
         self.policy_input_size = 0
+        self.compute_regression_loss = regression_loss
 
         # ============== rma obs mem CNN encoder =========== #
         if 'rma_obs_mem' in self.obs_groups:
@@ -162,7 +164,7 @@ class ActorCriticNet(nn.Module):
         X = torch.cat(X, dim=-1)
         action_mean = self.base_policy(X)
         value = self.critic(X)
-        if 'rma_obs_mem' in self.obs_groups:
+        if self.compute_regression_loss:
             # num_envs * 8
             z_loss = self.z_loss(z_rma_mem, z_env_factor)
             return action_mean, value, z_loss
@@ -191,6 +193,8 @@ class ActorCritic(nn.Module):
             self.rma_regression_loss = True
         else:
             self.rma_regression_loss = False
+        # FIXME: use z_rma_mem but not compute regression loss
+        self.rma_regression_loss = False
         activation = get_activation(activation)
 
         # Policy
@@ -199,6 +203,7 @@ class ActorCritic(nn.Module):
                                      actor_hidden_dims,
                                      critic_hidden_dims,
                                      activation,
+                                     self.rma_regression_loss
                                      )
         # Action noise
         self.std = nn.Parameter(init_noise_std * torch.ones(num_actions))
