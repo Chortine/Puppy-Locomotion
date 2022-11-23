@@ -38,11 +38,14 @@ class ActorCriticNet(nn.Module):
                 activation,
                 nn.Conv1d(in_channels=rma_obs_size, out_channels=rma_obs_size, kernel_size=5, stride=1,
                           padding=0),
+                activation,
+                nn.Flatten(),
+                nn.Linear(66, 8),
                 activation
             )
-            self.adaptation_module_encoder.append(nn.Flatten())
-            self.adaptation_module_encoder.append(nn.Linear(66, 8))
-            self.adaptation_module_encoder.append(activation)
+            # self.adaptation_module_encoder.append(nn.Flatten())
+            # self.adaptation_module_encoder.append(nn.Linear(66, 8))
+            # self.adaptation_module_encoder.append(activation)
 
             self.z_loss = nn.MSELoss()
 

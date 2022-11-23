@@ -55,8 +55,9 @@ def train(args):
     ppo_runner, train_cfg = task_registry.make_alg_runner(env=env, name=args.task, args=args, log_root=os.path.join(current_root, 'logs/'))
     # ckpt_path = '/home/tianchu/Documents/code_qy/puppy-gym/logs/Oct09_16-21-21_run1/model_100.pt'
     # ppo_runner.load(ckpt_path)
-    ckpt_path = os.path.join(current_root, 'logs/Nov22_18-55-42_run1/model_3690.pt')
+    # ckpt_path = os.path.join(current_root, 'logs/Nov22_18-55-42_run1/model_3690.pt')
     # ckpt_path = '/home/tianchu/Documents/code_qy/puppy-gym/logs/model_3690.pt'
+    ckpt_path = '/cephfs/zhangtianchu/puppy-bot/logs/Nov22_18-55-42_run1/model_3690.pt'
     ppo_runner.load_for_rma_phase2(ckpt_path)
     ppo_runner.learn(num_learning_iterations=train_cfg.runner.max_iterations, init_at_random_ep_len=True)
 
