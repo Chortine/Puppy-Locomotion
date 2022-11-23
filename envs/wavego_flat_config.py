@@ -80,7 +80,7 @@ obs_mem_len = 4
 # （硬生生写成了drill TAT...)
 obs_shape_dict = {
     'obs_tensor': {
-        'env_factor': 1 + 12 + 12 + 1 + 2 + 1,
+        # 'env_factor': 1 + 12 + 12 + 1 + 2 + 1,
         # 'sequence_dof_pos': 50 * 12,
         # 'sequence_dof_action': 50 * 12,
         'common_states': {
@@ -93,7 +93,7 @@ obs_shape_dict = {
             # 'targets': 12
         }
     },
-    'rma_obs_mem': (22, 50,)
+    # 'rma_obs_mem': (22, 50,)
 }
 
 
