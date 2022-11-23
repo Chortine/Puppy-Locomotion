@@ -29,7 +29,7 @@ class ActorCriticNet(nn.Module):
         if 'rma_obs_mem' in self.obs_groups:
             # capture the temporal relations
             rma_obs_size = obs_shape_dict['rma_obs_mem'][0]
-            self.cnn_encoder = nn.Sequential(
+            self.adaptation_module_encoder = nn.Sequential(
                 nn.Conv1d(in_channels=rma_obs_size, out_channels=rma_obs_size, kernel_size=8, stride=4,
                           padding=0),
                 activation,
@@ -40,9 +40,9 @@ class ActorCriticNet(nn.Module):
                           padding=0),
                 activation
             )
-            self.cnn_encoder.append(nn.Flatten())
-            self.cnn_encoder.append(nn.Linear(66, 8))
-            self.cnn_encoder.append(activation)
+            self.adaptation_module_encoder.append(nn.Flatten())
+            self.adaptation_module_encoder.append(nn.Linear(66, 8))
+            self.adaptation_module_encoder.append(activation)
 
             self.z_loss = nn.MSELoss()
 
@@ -133,7 +133,7 @@ class ActorCriticNet(nn.Module):
         if 'rma_obs_mem' in self.obs_groups:
             # encode rma_obs_mem
             rma_obs_mem = obs_dict['rma_obs_mem']
-            z_rma_mem = self.cnn_encoder(rma_obs_mem)
+            z_rma_mem = self.adaptation_module_encoder(rma_obs_mem)
 
         obs_tensor = obs_dict['obs_tensor']
         X = []
@@ -202,10 +202,16 @@ class ActorCritic(nn.Module):
         self.distribution = None
         # disable args validation for speedup
         Normal.set_default_validate_args = False
-
+        if self.rma_regression_loss:
+            self.freeze_parameters()
         # seems that we get better performance without init
         # self.init_memory_weights(self.memory_a, 0.001, 0.)
         # self.init_memory_weights(self.memory_c, 0.001, 0.)
+
+    def freeze_parameters(self):
+        for name, param in self.named_parameters():
+            if 'policy.adaptation_module_encoder' not in name:
+                param.requires_grad = False
 
     @staticmethod
     # not used at the moment
@@ -250,7 +256,10 @@ class ActorCritic(nn.Module):
         return self.distribution.log_prob(actions).sum(dim=-1)
 
     def act_inference(self, observations):
-        actions_mean, self.value = self.policy(observations)
+        if self.rma_regression_loss:
+            actions_mean, self.value, self.z_loss = self.policy(observations)
+        else:
+            actions_mean, self.value = self.policy(observations)
         self.distribution = Normal(actions_mean, actions_mean * 0. + self.std)
         return actions_mean
         # return self.distribution.sample()

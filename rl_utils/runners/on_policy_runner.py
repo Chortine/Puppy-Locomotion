@@ -231,6 +231,17 @@ class OnPolicyRunner:
         self.current_learning_iteration = loaded_dict['iter']
         return loaded_dict['infos']
 
+    def load_for_rma_phase2(self, path):
+        param_dict = torch.load(path)
+        # load only the env factor and base policy. not load the adaptation module
+        full_state = self.alg.actor_critic.state_dict()
+        for name, param in full_state.items():
+            if name not in param_dict['model_state_dict'].keys():
+                continue
+            if isinstance(param, torch.Tensor):
+                param.copy_(param_dict['model_state_dict'][name].data)
+        return param_dict['infos']
+
     def get_inference_policy(self, device=None):
         self.alg.actor_critic.eval()  # switch to evaluation mode (dropout for example)
         if device is not None:
