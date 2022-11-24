@@ -49,7 +49,7 @@ def play(args):
     args.num_envs = 10
     # ckpt_path = '/home/jingjing/PycharmProjects/puppy-bot/logs/train_11_2/model_2000_good.pt'
     # ckpt_path = '/home/jingjing/PycharmProjects/puppy-bot/logs/good_train/largepd_good_train.pt'
-    ckpt_path = '/home/tianchu/Documents/code_qy/puppy-gym/logs/model_240.pt'
+    ckpt_path = '/home/tianchu/Documents/code_qy/puppy-gym/logs/model_3990.pt'
     env_cfg, train_cfg = task_registry.get_cfgs(name=args.task)
     # override some parameters for testing
     env_cfg.env.num_envs = min(env_cfg.env.num_envs, 50)
@@ -66,7 +66,7 @@ def play(args):
     # load policy
     train_cfg.runner.resume = False
     ppo_runner, train_cfg = task_registry.make_alg_runner(env=env, name=args.task, args=args, train_cfg=train_cfg)
-    # ppo_runner.load(ckpt_path)
+    ppo_runner.load(ckpt_path)
     # ppo_runner.load_for_rma_phase2(ckpt_path)
 
     policy = ppo_runner.get_inference_policy(device=env.device)

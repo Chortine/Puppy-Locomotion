@@ -17,6 +17,7 @@ elif [ "$1" == "push" ]; then
     case $yn in
       yes )
         scp -r ~/Documents/code_qy/puppy-gym/real_deployment pi:~/Desktop/
+        scp -r ~/Documents/code_qy/puppy-gym/rl_utils pi:~/Desktop/
         echo "pushed the real_deployment folder to pi";;
       no )
         echo "not pushing the real_deployment folder to pi";;
