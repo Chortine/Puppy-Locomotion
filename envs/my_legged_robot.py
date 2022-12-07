@@ -1409,3 +1409,5 @@ class LeggedRobot(BaseTask):
                  + torch.abs(toe_from_body[:, 1] - toe_from_body[:, 3]) \
                  - torch.abs(toe_from_body[:, 0] - toe_from_body[:, 3]) \
                  - torch.abs(toe_from_body[:, 1] - toe_from_body[:, 2])
+
+        return reward
