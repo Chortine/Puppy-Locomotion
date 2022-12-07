@@ -104,16 +104,17 @@ class RealPipeline:
         for key in self.mem.keys():
             result[key] = self.mem[key][-1]
             for i in range(self.obs_mem_len - 1):
-                result[key] = torch.concat((result[key], self.mem[key][-1 - self.obs_mem_skip * i - self.obs_mem_skip]), 1)
+                result[key] = torch.concat((result[key], self.mem[key][-1 - self.obs_mem_skip * i - self.obs_mem_skip]),
+                                           1)
         return result
 
-    def state_to_obs(self, state: State):
+    def state_to_obs(self, state: State, top_commands=[0.2, 0, 0.05]):
         """
         Computes observations
         """
         # time.sleep(0.1)
         # my observations
-        top_commands = torch.tensor([[0.2, 0, 0]], device='cpu')
+        top_commands = torch.tensor([top_commands], device='cpu')
         commands_scale = torch.tensor([self.cfg.normalization.obs_scales.lin_vel,
                                        self.cfg.normalization.obs_scales.lin_vel,
                                        self.cfg.normalization.obs_scales.ang_vel],
@@ -123,9 +124,13 @@ class RealPipeline:
         actions = self.last_clipped_action
         base_ang_vel_real = np.deg2rad(state.angular_v)
         base_ang_vel_sim = torch.tensor([[-base_ang_vel_real[1], base_ang_vel_real[0], base_ang_vel_real[2]]])
-        base_rp = np.deg2rad(state.rp)
-        roll = torch.tensor([[base_rp[0]]])
-        pitch = torch.tensor([[base_rp[1]]])
+        base_rp_real = state.rp_acc
+        # base_rp_real[1] += 6
+        # base_rp_real[0] += 4
+        # print(f'base_rp_real {base_rp_real}')
+        base_rp_real = np.deg2rad(state.rp_acc)
+        roll = torch.tensor([[-base_rp_real[1]]])
+        pitch = torch.tensor([[base_rp_real[0]]])
 
         # roll, pitch, _ = get_euler_xyz(self.base_quat)
 
@@ -292,3 +297,17 @@ class RealPipeline:
                     cmd['rl_leg']]
         commands = np.concatenate(commands)
         return commands
+
+
+def test_FK():
+    pipline = RealPipeline(WavegoFlatCfg, WavegoFlatCfgPPO)
+    w, x, y = pipline.compute_forward_kinematics_one_leg(angle_j0=np.deg2rad(4), angle_j1=np.deg2rad(15),
+                                                         angle_j2=np.deg2rad(-15))
+    print(f'{w}, {x}, {y}')
+
+def test_opencv():
+    import cv2
+    cv2.namedWindow('lalla')
+
+if __name__ == '__main__':
+    test_opencv()
