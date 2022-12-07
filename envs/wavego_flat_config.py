@@ -93,7 +93,7 @@ obs_shape_dict = {
             # 'targets': 12
         }
     },
-    'rma_obs_mem': (22, 50,)
+    # 'rma_obs_mem': (22, 50,)
 }
 
 
@@ -248,6 +248,8 @@ class WavegoFlatCfg(LeggedRobotCfg):
             stand_still = -0.1
             energy = -0.0
 
+            toe_height = 0.001
+
     class normalization:
         class obs_scales:
             lin_vel = 2.0
@@ -276,11 +278,13 @@ class WavegoFlatCfg(LeggedRobotCfg):
 
         randomize_pd = True
         stiffness = {
-            '0': [3.0, 3.0], '1': [1., 2.], '2': [1., 2.],
+            # '0': [3.0, 3.0], '1': [1., 2.], '2': [1., 2.],
+            '0': [3.0, 3.0], '1': [0.8, 1.2], '2': [0.8, 1.2],
         }
 
         damping = {
-            '0': [0.001, 0.01], '1': [0.001, 0.01], '2': [0.001, 0.01],
+            # '0': [0.001, 0.01], '1': [0.001, 0.01], '2': [0.001, 0.01],
+            '0': [0.001, 0.01], '1': [0.0001, 0.0005], '2': [0.0001, 0.0005],
         }
 
 

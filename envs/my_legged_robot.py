@@ -1393,3 +1393,19 @@ class LeggedRobot(BaseTask):
         # penalize high contact forces
         return torch.sum((torch.norm(self.contact_forces[:, self.feet_indices, :],
                                      dim=-1) - self.cfg.rewards.max_contact_force).clip(min=0.), dim=1)
+
+    def _reward_toe_height(self):
+        j1 = torch.index_select(self.dof_pos, 1, torch.tensor([1, 4, 7, 10]).to("cuda"))
+        j2 = torch.index_select(self.dof_pos, 1, torch.tensor([2, 5, 8, 11]).to("cuda"))
+        alpha = j1 + torch.deg2rad(torch.tensor([45])).to("cuda")
+        gamma = j2 + torch.deg2rad(torch.tensor([120])).to("cuda")
+        theta = torch.deg2rad(torch.tensor([180])).to("cuda") - alpha - gamma
+        toe_from_body = torch.tensor([40.0]).to("cuda") * torch.cos(alpha) + torch.tensor(70.).to("cuda") * torch.cos(theta)
+
+        # slow
+        reward = torch.abs(toe_from_body[:, 0] - toe_from_body[:, 1]) \
+                 + torch.abs(toe_from_body[:, 2] - toe_from_body[:, 3]) \
+                 + torch.abs(toe_from_body[:, 0] - toe_from_body[:, 2]) \
+                 + torch.abs(toe_from_body[:, 1] - toe_from_body[:, 3]) \
+                 - torch.abs(toe_from_body[:, 0] - toe_from_body[:, 3]) \
+                 - torch.abs(toe_from_body[:, 1] - toe_from_body[:, 2])
