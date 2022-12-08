@@ -93,7 +93,7 @@ obs_shape_dict = {
             # 'targets': 12
         }
     },
-    # 'rma_obs_mem': (22, 50,)
+    'rma_obs_mem': (22, 50,)
 }
 
 

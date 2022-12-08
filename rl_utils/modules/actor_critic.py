@@ -194,7 +194,7 @@ class ActorCritic(nn.Module):
         else:
             self.rma_regression_loss = False
         # FIXME: use z_rma_mem but not compute regression loss
-        self.rma_regression_loss = False
+        # self.rma_regression_loss = False
         activation = get_activation(activation)
 
         # Policy
