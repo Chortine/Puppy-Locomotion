@@ -1,1 +1,1 @@
-./resources/sliding_table.mp4
+https://github.com/Chortine/Puppy-Locomotion/blob/main/resources/rma_diff_friction.mp4
