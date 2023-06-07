@@ -64,10 +64,13 @@ AMP等方法
 #### 硬件调优
 @ WJ 卡尔曼滤波
 
-#### 
-### 重要细节
-<!-- ![puppy_origin](https://github.com/Chortine/Puppy-Locomotion/assets/107395103/8d0ad096-e82c-46f8-9d15-76c84ebff9bc)
-![puppy_modified](https://github.com/Chortine/Puppy-Locomotion/assets/107395103/b04f3160-1fb8-45d8-8f62-e6c9094c4427) -->
+
+### 细节
+| 光滑桌面  | 弹性表面 |
+| ------------- | ------------- |
+| <img src="https://github.com/Chortine/Puppy-Locomotion/assets/107395103/70a0d7f9-23b1-47fd-8b4f-eeeac5f73caa" height="200" width="10">  | <img src="https://github.com/Chortine/Puppy-Locomotion/assets/107395103/7c6b0735-e859-466d-be40-eaea77943a27" height="200" width="310">|
+
+
 虚实迁移的时候
 
 
