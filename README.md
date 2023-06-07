@@ -68,7 +68,7 @@ AMP等方法
 ### 细节
 | 光滑桌面  | 弹性表面 |
 | ------------- | ------------- |
-| <img src="https://github.com/Chortine/Puppy-Locomotion/assets/107395103/70a0d7f9-23b1-47fd-8b4f-eeeac5f73caa" height="200" width="10">  | <img src="https://github.com/Chortine/Puppy-Locomotion/assets/107395103/7c6b0735-e859-466d-be40-eaea77943a27" height="200" width="310">|
+| <img src="https://github.com/Chortine/Puppy-Locomotion/assets/107395103/70a0d7f9-23b1-47fd-8b4f-eeeac5f73caa" height="200" width="310">  | <img src="https://github.com/Chortine/Puppy-Locomotion/assets/107395103/7c6b0735-e859-466d-be40-eaea77943a27" height="200" width="310">|
 
 
 虚实迁移的时候
