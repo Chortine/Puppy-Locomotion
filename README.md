@@ -4,7 +4,7 @@
 四足机械小狗行走算法的训练和迁移。作为一个完成度较高的虚实迁移项目，下文介绍了项目的全流程，以及最终成果，以此仓库作为一个工程化的档案记录。
 
 ## 硬件
-WaveGo四足小狗，每条腿有3个自由度，共12个自由度。
+[WaveGo四足小狗](https://www.waveshare.com/wavego.htm)，每条腿有3个自由度，共12个自由度。
 
 <a href="https://www.bilibili.com/video/BV1Eh4y1475R/?spm_id_from=333.999.0.0"><img height="216" src="https://github.com/Chortine/Puppy-Locomotion/assets/107395103/d3a4e92e-e5ec-4939-a282-3507bfc1f345" width="340"/></a>
 <!-- ![puppy_legs](https://github.com/Chortine/Puppy-Locomotion/assets/107395103/d3a4e92e-e5ec-4939-a282-3507bfc1f345) -->
@@ -14,7 +14,7 @@ WaveGo四足小狗，每条腿有3个自由度，共12个自由度。
 ## 方法
 * Policy输入：  
 由于目标是迁移到实际的四足上，因此输入受限于实际的硬件传感器能读的值。主要有：机身的IMU数据(线加速度和角度)，
-* 输出： 12个连续动作输出，每个对应一个关节的target pos，相对于关节初始位置的表示。
+* 输出： 12个连续动作输出，每个对应一个关节的目标角度，相对于关节初始角度的表示。
 * 算法：连续动作PPO。 
 * 仿真： 在这里我们用isaac gym作为仿真环境，该环境的特点是
 训练代码基于Nvidia的开源四足训练仓库legged_gym[1]修改。训练算法使用连续动作PPO。
@@ -71,12 +71,12 @@ WaveGo四足小狗，每条腿有3个自由度，共12个自由度。
 
 
 ### 细节
-| 实际的闭链腿部结构  | 改为开链腿部结构 |
+| 实际的闭链腿部结构  | 仿真中改为开链腿部结构 |
 | ------------- | ------------- |
 | <img src="https://github.com/Chortine/Puppy-Locomotion/assets/107395103/70a0d7f9-23b1-47fd-8b4f-eeeac5f73caa" height="200" width="310">  | <img src="https://github.com/Chortine/Puppy-Locomotion/assets/107395103/7c6b0735-e859-466d-be40-eaea77943a27" height="200" width="310">|
 
 
-由于实际的狗腿部存在闭链机械结构，而Isaac Gym里使用的机器人描述文件是URDF，其只支持开环的结构。所以这里使用了一个小trick：
+由于实际的狗腿部存在闭链机械结构，而Isaac Gym里使用的机器人描述文件是URDF，其只支持开环的结构。所以这里使用了一个小trick：将闭链腿部结构改为开链结构，如右图，并且把自由度从原本髋关节的三个，改为髋关节的两个（j0和j1）+膝关节的一个（j2）。
 
 
 ## 效果视频
