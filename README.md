@@ -1,5 +1,7 @@
+# PuppyWalker：An end-to-end walking policy sim2real to cheap quadruped platform.
+
 ## 介绍
-四足机械小狗行走算法的训练和迁移。作为一个完成度较高的虚实迁移项目，下文介绍了项目的全流程，以及最终成果。
+四足机械小狗行走算法的训练和迁移。作为一个完成度较高的虚实迁移项目，下文介绍了项目的全流程，以及最终成果，以此仓库作为一个工程化的档案记录。
 
 ## 硬件
 WaveGo四足小狗，每条腿有3个自由度，共12个自由度。
@@ -7,25 +9,21 @@ WaveGo四足小狗，每条腿有3个自由度，共12个自由度。
 <a href="https://www.bilibili.com/video/BV1Eh4y1475R/?spm_id_from=333.999.0.0"><img height="216" src="https://github.com/Chortine/Puppy-Locomotion/assets/107395103/d3a4e92e-e5ec-4939-a282-3507bfc1f345" width="340"/></a>
 <!-- ![puppy_legs](https://github.com/Chortine/Puppy-Locomotion/assets/107395103/d3a4e92e-e5ec-4939-a282-3507bfc1f345) -->
 
-树莓派
-ESP32下位机
+其搭载的计算平台有树莓派，ESP32下位机。最终策略网络部署在树莓派上进行推理，
 
 ## 方法
-Policy输入：  
+* Policy输入：  
 由于目标是迁移到实际的四足上，因此输入受限于实际的硬件传感器能读的值。主要有：机身的IMU数据(线加速度和角度)，
-输出： 12个连续动作输出，每个对应一个关节的target pos，相对于关节初始位置的表示。
-算法：连续动作PPO。 
-
-
-
-<!-- ![image](https://github.com/Chortine/Puppy-Locomotion/assets/107395103/95777fc2-8796-4766-a631-8cc3e0469348) -->
-
-在这里我们用isaac gym作为仿真环境，
-<a href="https://www.bilibili.com/video/BV1Eh4y1475R/?spm_id_from=333.999.0.0"><img height="216" src="https://github.com/Chortine/Puppy-Locomotion/assets/107395103/95777fc2-8796-4766-a631-8cc3e0469348" width="380"/></a>
+* 输出： 12个连续动作输出，每个对应一个关节的target pos，相对于关节初始位置的表示。
+* 算法：连续动作PPO。 
+* 仿真： 在这里我们用isaac gym作为仿真环境，该环境的特点是
 训练代码基于Nvidia的开源四足训练仓库legged_gym[1]修改。训练算法使用连续动作PPO。
 仿真里关节pd的定义和实际中pid控制的pd略有不同。仿真里的pd是为了计算最终作用到关节上的力矩，公式为：
 ![4](http://latex.codecogs.com/svg.latex?torque=p(\theta_{target}-\theta_{current})-d\dot{\theta})
 可以说，仿真里的pd是用来计算从当前关节状态到力矩的映射。
+
+<a href="https://www.bilibili.com/video/BV1Eh4y1475R/?spm_id_from=333.999.0.0"><img height="216" src="https://github.com/Chortine/Puppy-Locomotion/assets/107395103/95777fc2-8796-4766-a631-8cc3e0469348" width="380"/></a>
+<!-- ![image](https://github.com/Chortine/Puppy-Locomotion/assets/107395103/95777fc2-8796-4766-a631-8cc3e0469348) -->
 
 #### 获得仿真中的行走baseline
   四足由于动作空间较大，对环境参数敏感，往往需要较多的工作来获得一个在仿真中可以行走的Baseline。之后再基于此进行调优。即便Legged_Gym[1]仓库提供了基于诸如unitree和anymal等大型四足狗的训练样，但直接复制同样的参数会导致在小狗上训练失败。以下是我们作的一些工作：  
@@ -34,7 +32,7 @@ Policy输入：
     重要参数有：  
       1. 关节初始角度和关节PD参数，设定原则：让action为0的时候、狗能平稳地直立在原地（如果PD太大会出现抖动，如果太小则狗会倒伏）
       2. 关节限定值： 根据世纪舵机的参数来设定，实际关节的最大力矩取是0.23N*m，关节的最大转速是60deg/0.1s.  
-      3. action_scale: 最终取的是0.25，大于0.3训不出来
+      3. action_scale: 策略网络输出的action*action_scale=关节的target_pos。经实验改值对训练效果影响较大。最终取的是0.25，大于0.3则训不出来。
       4. 仿真dt: 对于仿真效果来说，dt越小越仿真精度越高，但是仿真效率越低。
          选择的方法是让狗直立在原地，此时各关节转速读数应该接近0，然后慢慢调大dt，使得关节角速度的指出现异常跳变为止。  
          这时的dt就是可取的dt上限。在这之内取个能平衡计算速度和精度的dt值。
@@ -65,7 +63,7 @@ Policy输入：
      3. 地面摩擦系数
      4. 关节PD参数
   5. RMA[2]  
-    <img src="https://github.com/Chortine/Puppy-Locomotion/assets/107395103/f2601bf9-8deb-4876-a22a-a9d270c82bde" height="250" width="650">
+    <img src="https://github.com/Chortine/Puppy-Locomotion/assets/107395103/f2601bf9-8deb-4876-a22a-a9d270c82bde" height="250" width="600">
 
 
 #### 硬件调优
@@ -73,12 +71,12 @@ Policy输入：
 
 
 ### 细节
-| 光滑桌面  | 弹性表面 |
+| 实际的闭链腿部结构  | 改为开链腿部结构 |
 | ------------- | ------------- |
 | <img src="https://github.com/Chortine/Puppy-Locomotion/assets/107395103/70a0d7f9-23b1-47fd-8b4f-eeeac5f73caa" height="200" width="310">  | <img src="https://github.com/Chortine/Puppy-Locomotion/assets/107395103/7c6b0735-e859-466d-be40-eaea77943a27" height="200" width="310">|
 
 
-虚实迁移的时候
+由于实际的狗腿部存在闭链机械结构，而Isaac Gym里使用的机器人描述文件是URDF，其只支持开环的结构。所以这里使用了一个小trick：
 
 
 ## 效果视频
@@ -99,5 +97,5 @@ Policy输入：
 
 ## 参考
 [1] legged_gym
-[2] RMA
-[3] Flood
+[2] RMA 
+[3] MetalHead
