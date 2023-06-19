@@ -39,10 +39,6 @@
 
   除了以上经验调节方法，还能用CEM等进化算法大规模搜索最优的参数组合。[3]  
   
-  2. Reward Shaping  
-  
-    重要的reward项有：
-      1. 
     
 #### 获得更自然的步态
 @ WJ： AMP等方法
@@ -80,20 +76,22 @@
 
 
 ## 效果视频
-| 光滑桌面  | 弹性表面 |
-| ------------- | ------------- |
-| <video src="https://github.com/Chortine/Puppy-Locomotion/assets/107395103/7d432b00-0fe5-4708-b102-10568e7e2b5d">  | <video src="https://github.com/Chortine/Puppy-Locomotion/assets/107395103/6b2e3eef-1445-47b2-9b3c-6167f3147ee7">|
-
 | 光滑地面  | 柔软表面 |
 | ------------- | ------------- |
-| <video src="https://github.com/Chortine/Puppy-Locomotion/assets/107395103/951fb168-5261-4f72-9f1a-d5551a720602">  | <video src="https://github.com/Chortine/Puppy-Locomotion/assets/107395103/6933d48d-ca22-4ae6-96bb-05a455067802">|
+| <video src="https://github.com/Chortine/Puppy-Locomotion/assets/107395103/52403fed-058d-4a6c-acdc-09ba4d3f6662">  | <video src="https://github.com/Chortine/Puppy-Locomotion/assets/107395103/1bd89add-d334-4c4b-b394-01a8aaf81e32">|
+
+
+| 光滑桌面  | 弹性表面 |
+| ------------- | ------------- |
+| <video src="https://github.com/Chortine/Puppy-Locomotion/assets/107395103/6be9e5ab-5a8d-4b73-9c20-44afa9174089">  | <video src="https://github.com/Chortine/Puppy-Locomotion/assets/107395103/b1b76799-c4aa-4f19-a18f-dc5bcc791be2">|
   
 
 #### 带RMA
   
-| 光滑地面  | 柔软表面 |
+| 不同材质  | 转向 |
 | ------------- | ------------- |
-| <video src="https://github.com/Chortine/Puppy-Locomotion/assets/107395103/e1050dd7-97f5-4d01-89a7-7043bc04d4c7">  | <video src="https://github.com/Chortine/Puppy-Locomotion/assets/107395103/5ce325f1-0723-4e14-8ddb-92ae9d711cf5">|
+| <video src="https://github.com/Chortine/Puppy-Locomotion/assets/107395103/0fffd0a1-4504-4050-a5b5-767eb9ed6577">  | <video src="https://github.com/Chortine/Puppy-Locomotion/assets/107395103/42014e8c-2d04-4198-8045-c902a1e68c63">|
+
 
 ## 参考
 [1] legged_gym
