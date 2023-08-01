@@ -6,8 +6,7 @@
 ## 硬件
 [WaveGo四足小狗](https://www.waveshare.com/wavego.htm)，每条腿有3个自由度，共12个自由度。
 
-<a href="https://www.bilibili.com/video/BV1Eh4y1475R/?spm_id_from=333.999.0.0"><img height="216" src="https://github.com/Chortine/Puppy-Locomotion/assets/107395103/d3a4e92e-e5ec-4939-a282-3507bfc1f345" width="340"/></a>
-<!-- ![puppy_legs](https://github.com/Chortine/Puppy-Locomotion/assets/107395103/d3a4e92e-e5ec-4939-a282-3507bfc1f345) -->
+<img height="216" src="https://github.com/Chortine/Puppy-Locomotion/assets/107395103/5f0bb1b0-738a-40e3-aefe-6d42788eaf22" width="300"/>
 
 其搭载的计算平台有树莓派，ESP32下位机。最终策略网络部署在树莓派上进行推理，
 
@@ -22,7 +21,6 @@
 ![4](http://latex.codecogs.com/svg.latex?torque=p(\theta_{target}-\theta_{current})-d\dot{\theta})
 可以说，仿真里的pd是用来计算从当前关节状态到力矩的映射。
 
-<a href="https://www.bilibili.com/video/BV1Eh4y1475R/?spm_id_from=333.999.0.0"><img height="216" src="https://github.com/Chortine/Puppy-Locomotion/assets/107395103/95777fc2-8796-4766-a631-8cc3e0469348" width="380"/></a>
 <!-- ![image](https://github.com/Chortine/Puppy-Locomotion/assets/107395103/95777fc2-8796-4766-a631-8cc3e0469348) -->
 
 #### 获得仿真中的行走baseline
@@ -38,7 +36,13 @@
          这时的dt就是可取的dt上限。在这之内取个能平衡计算速度和精度的dt值。
 
   除了以上经验调节方法，还能用CEM等进化算法大规模搜索最优的参数组合。[3]  
-  
+
+
+#### 仿真baseline效果
+
+https://github.com/Chortine/Puppy-Locomotion/assets/107395103/3f62d94b-674e-43ba-b135-8719e77e1ec5
+
+
     
 #### 获得更自然的步态
 @ WJ： AMP等方法
@@ -58,8 +62,9 @@
      2. 机身质量
      3. 地面摩擦系数
      4. 关节PD参数
-  5. RMA[2]  
-    <img src="https://github.com/Chortine/Puppy-Locomotion/assets/107395103/f2601bf9-8deb-4876-a22a-a9d270c82bde" height="250" width="600">
+  5. RMA[2]
+     
+  <img src="https://github.com/Chortine/Puppy-Locomotion/assets/107395103/63d83db1-5be3-4771-82f8-563829458b1a" height="450" width="650">
 
 
 #### 硬件调优
@@ -69,7 +74,7 @@
 ### 细节
 | 实际的闭链腿部结构  | 仿真中改为开链腿部结构 |
 | ------------- | ------------- |
-| <img src="https://github.com/Chortine/Puppy-Locomotion/assets/107395103/70a0d7f9-23b1-47fd-8b4f-eeeac5f73caa" height="200" width="310">  | <img src="https://github.com/Chortine/Puppy-Locomotion/assets/107395103/7c6b0735-e859-466d-be40-eaea77943a27" height="200" width="310">|
+| <img src="https://github.com/Chortine/Puppy-Locomotion/assets/107395103/7a6d44b2-98b2-432f-8b53-141f6d71a552" height="200" width="310">  | <img src="https://github.com/Chortine/Puppy-Locomotion/assets/107395103/be1f3a7a-3010-43b7-a302-df87b0c20c1d" height="200" width="310">|
 
 
 由于实际的狗腿部存在闭链机械结构，而Isaac Gym里使用的机器人描述文件是URDF，其只支持开环的结构。所以这里使用了一个小trick：将闭链腿部结构改为开链结构，如右图，并且把自由度从原本髋关节的三个，改为髋关节的两个（j0和j1）+膝关节的一个（j2）。
